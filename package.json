@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
   "name": "rashaqa",
   "version": "1.0.0",
   "description": "تطبيق رشاقة الذكي",
@@ -28,5 +29,29 @@
     "@vitejs/plugin-react": "^6.1.2",
     "typescript": "^7.0.2",
     "vite": "^8.3.2"
+=======
+  "name": "rashaqa-v2",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0"
+>>>>>>> d5541f02ade8a932d14c5b634d6df8a160b11f69
   }
 }
