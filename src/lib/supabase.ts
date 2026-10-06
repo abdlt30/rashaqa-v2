@@ -1,13 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseUrl = 'https://axthmghawwishcjlldfj.supabase.co'
+const supabaseKey = 'sb_publishable_65sfnmWes7WZbqKmJ931-g_aakVowXY'
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables. Check .env.local')
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseKey)
 
 export function getFoodImageUrl(fileName: string): string {
   const { data } = supabase.storage.from('meals').getPublicUrl(fileName)

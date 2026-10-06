@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { HashRouter, Routes, Route } from 'react-router-dom'
 import BottomNav from './components/BottomNav'
 import OnboardingFlow from './features/onboarding/OnboardingFlow'
 import HomeScreen from './screens/HomeScreen'
@@ -16,7 +16,7 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <div style={{
         background: 'var(--color-bg-base)',
         minHeight: '100dvh',
@@ -31,7 +31,7 @@ function App() {
         </Routes>
         <BottomNav />
       </div>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
 
