@@ -23,7 +23,6 @@ export interface NutritionTargets {
 export function calculateTargets(data: OnboardingData): NutritionTargets {
   const { weight_kg, height_cm, age, gender, activity_level, goal } = data
 
-  // Mifflin-St Jeor Equation
   const bmr =
     gender === 'male'
       ? 10 * weight_kg + 6.25 * height_cm - 5 * age + 5
