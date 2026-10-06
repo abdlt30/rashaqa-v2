@@ -1,0 +1,128 @@
+/* ============================================
+   RASHAQA DESIGN SYSTEM v1.0
+   ============================================ */
+
+:root {
+  /* ===== COLORS ===== */
+  --color-bg-base: #0A0C10;
+  --color-bg-elevated: #14171F;
+  --color-surface-1: #1A1E28;
+  --color-surface-2: #222634;
+  --color-border-subtle: #252A36;
+  --color-border-strong: #363C4A;
+
+  --color-primary-50: #E6F2EF;
+  --color-primary-100: #C2E0D8;
+  --color-primary-300: #5FA892;
+  --color-primary-500: #1F6F5F;
+  --color-primary-700: #134A3F;
+  --color-primary-900: #0A2B25;
+
+  --color-bronze-100: #F5EDD9;
+  --color-bronze-500: #C9A961;
+  --color-bronze-700: #9A7F3F;
+
+  --color-success: #2E7D5F;
+  --color-warning: #D97706;
+  --color-error: #C5382E;
+  --color-info: #2563EB;
+
+  --color-text-primary: #F5F5F0;
+  --color-text-secondary: #A0A5B2;
+  --color-text-muted: #6B7080;
+  --color-text-disabled: #4A4F5C;
+  --color-text-on-primary: #FFFFFF;
+  --color-text-on-bronze: #1A1A1A;
+
+  /* ===== TYPOGRAPHY ===== */
+  --font-arabic: 'IBM Plex Sans Arabic', system-ui, -apple-system, sans-serif;
+  --font-english: 'Inter', system-ui, -apple-system, sans-serif;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  --fs-display: 40px;
+  --fs-h1: 28px;
+  --fs-h2: 22px;
+  --fs-h3: 18px;
+  --fs-body-lg: 16px;
+  --fs-body: 15px;
+  --fs-body-sm: 13px;
+  --fs-caption: 11px;
+
+  /* ===== SPACING ===== */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ===== RADIUS ===== */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+  --radius-full: 9999px;
+
+  /* ===== SHADOWS ===== */
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm: 0 2px 6px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.10);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.16);
+  --shadow-focus: 0 0 0 3px rgba(31,111,95,0.32);
+}
+
+/* ===== RESET ===== */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-arabic);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: none;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+button, input, textarea {
+  font-family: inherit;
+}
+
+/* ===== LIGHT MODE ===== */
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-bg-base: #FAFAF7;
+    --color-bg-elevated: #FFFFFF;
+    --color-surface-1: #FFFFFF;
+    --color-surface-2: #F5F5F0;
+    --color-border-subtle: #E5E5E0;
+    --color-border-strong: #D0D0CA;
+    --color-text-primary: #0F1115;
+    --color-text-secondary: #4A4F5C;
+    --color-text-muted: #8B909C;
+    --color-text-disabled: #B8BCC5;
+  }
+  html, body {
+    background: var(--color-bg-base);
+    color: var(--color-text-primary);
+  }
+}
