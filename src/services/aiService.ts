@@ -7,10 +7,9 @@ export async function askAi(action: string, payload: any) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, ...payload }),
     });
-    const data = await response.json();
-    return data;
+    return await response.json();
   } catch (error) {
     console.error('AI Service Error:', error);
-    return { ok: false, error: 'حدث خطأ في الاتصال بالمدرب الذكي' };
+    return { ok: false, error: 'حدث خطأ في الاتصال' };
   }
 }
