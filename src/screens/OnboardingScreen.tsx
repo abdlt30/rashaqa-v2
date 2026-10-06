@@ -1,10 +1,23 @@
 import React, { useState } from 'react'
-import { Sparkles, Camera, Bot } from 'lucide-react'
-import { colors, fonts } from '../theme/theme'
+import { Sparkles, Camera, Bot, TrendingDown, Scale, TrendingUp, ChevronLeft } from 'lucide-react'
 
 interface Props {
   onComplete: (data: { name: string; goal: string }) => void
   onSkipToLogin: () => void
+}
+
+const COLORS = {
+  bg: '#0A0A14',
+  card: '#15152A',
+  cardActive: '#1F1F3D',
+  border: '#252540',
+  text: '#FFFFFF',
+  muted: '#8B8BA7',
+  pink: '#FF6B9D',
+  orange: '#FFA726',
+  blue: '#4FC3F7',
+  purple: '#7C4DFF',
+  green: '#4CAF50',
 }
 
 export default function OnboardingScreen({ onComplete, onSkipToLogin }: Props) {
@@ -13,9 +26,15 @@ export default function OnboardingScreen({ onComplete, onSkipToLogin }: Props) {
   const [goal, setGoal] = useState('maintain')
 
   const slides = [
-    { Icon: Sparkles, title: 'أهلاً بك في رشاقة', desc: 'رفيقك العربي الذكي للصحة والتغذية، صُمم خصيصاً لثقافتنا ومطبخنا.', gradient: ['#FF6B9D', '#FFA726'] },
-    { Icon: Camera, title: 'صوّر وجبتك', desc: 'الذكاء الاصطناعي يحلل الأطباق العربية (منسف، كبسة، طاجين) في ثوانٍ.', gradient: ['#4FC3F7', '#7C4DFF'] },
-    { Icon: Bot, title: 'مدرب ذكي يفهمك', desc: 'اسأل عن أي شيء، وسيجيبك بلغة عربية دافئة، مع خطة تناسب حياتك.', gradient: ['#66BB6A', '#FFA726'] },
+    { Icon: Sparkles, title: 'أهلاً بك في رشاقة', desc: 'رفيقك العربي الذكي للصحة والتغذية. صُمم خصيصاً لثقافتنا ومطبخنا.', color: COLORS.pink, color2: COLORS.orange },
+    { Icon: Camera, title: 'صوّر وجبتك', desc: 'الذكاء الاصطناعي يحلل الأطباق العربية (منسف، كبسة، طاجين) في ثوانٍ.', color: COLORS.blue, color2: COLORS.purple },
+    { Icon: Bot, title: 'مدرب ذكي يفهمك', desc: 'اسأل عن أي شيء، وسيجيبك بلغة عربية دافئة، مع خطة تناسب حياتك.', color: COLORS.green, color2: COLORS.orange },
+  ]
+
+  const goalOptions = [
+    { key: 'lose', label: 'إنقاص الوزن', sub: 'حرق دهون بشكل صحي', Icon: TrendingDown, color: COLORS.pink },
+    { key: 'maintain', label: 'الحفاظ على وزني', sub: 'نمط حياة متوازن', Icon: Scale, color: COLORS.blue },
+    { key: 'gain', label: 'زيادة الوزن', sub: 'بناء عضلات صحية', Icon: TrendingUp, color: COLORS.green },
   ]
 
   const handleNext = () => {
@@ -28,153 +47,168 @@ export default function OnboardingScreen({ onComplete, onSkipToLogin }: Props) {
     onComplete({ name: name.trim(), goal })
   }
 
-  // مرحلة العرض (Slides)
+  // ============ Slides ============
   if (step < slides.length) {
-    const { Icon, title, desc, gradient } = slides[step]
+    const { Icon, title, desc, color, color2 } = slides[step]
+    const progress = ((step + 1) / slides.length) * 100
+
     return (
-      <div style={{
-        minHeight: '100dvh',
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '32px 24px calc(32px + env(safe-area-inset-bottom))',
-        background: 'linear-gradient(160deg, #0F0F1A 0%, #1A1A2E 50%, #0F0F1A 100%)',
-        fontFamily: fonts.regular,
-        boxSizing: 'border-box',
-      }}>
-        {/* Progress dots */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '32px' }}>
-          {slides.map((_, i) => (
-            <div key={i} style={{ width: i === step ? '24px' : '8px', height: '8px', borderRadius: '4px', background: i === step ? colors.primary : '#2A2A3E', transition: 'all 0.3s' }} />
-          ))}
+      <div style={{ position: 'relative', minHeight: '100dvh', background: `radial-gradient(ellipse at top, ${color}22 0%, ${COLORS.bg} 50%)`, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Progress Bar - thin line at top */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: '#1A1A2E' }}>
+          <div style={{ width: `${progress}%`, height: '100%', background: `linear-gradient(90deg, ${color}, ${color2})`, transition: 'width 0.4s ease' }} />
         </div>
 
-        {/* Icon area - flex:1 for centering */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-          <div style={{
-            width: '140px',
-            height: '140px',
-            borderRadius: '50%',
-            background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]})`,
+        {/* Skip Button */}
+        <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            onClick={() => onComplete({ name: 'ضيف', goal: 'maintain' })}
+            style={{ background: 'transparent', border: 'none', color: COLORS.muted, fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            تخطى
+          </button>
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 32px', gap: '32px' }}>
+          <div style={{ position: 'relative' }}>
+            <div style={{ position: 'absolute', inset: -20, borderRadius: '50%', background: `radial-gradient(circle, ${color}44, transparent 70%)`, filter: 'blur(30px)' }} />
+            <div style={{ position: 'relative', width: '160px', height: '160px', borderRadius: '48px', background: `linear-gradient(135deg, ${color}, ${color2})`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: `0 24px 60px ${color}55, inset 0 2px 0 rgba(255,255,255,0.3)` }}>
+              <Icon size={72} color="white" strokeWidth={1.8} />
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'center', maxWidth: '340px' }}>
+            <h1 style={{ color: COLORS.text, fontSize: '32px', fontWeight: 800, lineHeight: 1.3, margin: '0 0 16px 0', letterSpacing: '-0.5px' }}>
+              {title}
+            </h1>
+            <p style={{ color: COLORS.muted, fontSize: '16px', lineHeight: 1.7, margin: 0 }}>
+              {desc}
+            </p>
+          </div>
+        </div>
+
+        {/* Bottom Action */}
+        <div style={{ padding: '24px 24px calc(32px + env(safe-area-inset-bottom))' }}>
+          <button onClick={handleNext} style={{
+            width: '100%',
+            padding: '20px',
+            background: `linear-gradient(90deg, ${COLORS.pink}, ${COLORS.orange})`,
+            color: 'white',
+            border: 'none',
+            borderRadius: '20px',
+            fontSize: '17px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            boxShadow: `0 12px 40px ${COLORS.pink}66`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: `0 20px 60px ${gradient[0]}44`,
-            marginBottom: '40px',
+            gap: '8px',
           }}>
-            <Icon size={64} color="white" strokeWidth={2.5} />
-          </div>
-
-          <h1 style={{ color: colors.text, fontSize: 'clamp(22px, 6vw, 28px)', marginBottom: '16px', fontWeight: 'bold', textAlign: 'center', margin: '0 0 16px 0' }}>
-            {title}
-          </h1>
-          <p style={{ color: colors.textMuted, fontSize: 'clamp(14px, 4vw, 16px)', lineHeight: 1.7, textAlign: 'center', margin: 0, maxWidth: '340px' }}>
-            {desc}
-          </p>
+            {step === slides.length - 1 ? 'يلا نبدأ 🚀' : 'التالي'}
+          </button>
         </div>
-
-        {/* Bottom button */}
-        <button onClick={handleNext} style={{
-          width: '100%',
-          padding: '18px',
-          background: 'linear-gradient(90deg, #FF6B9D, #FFA726)',
-          color: 'white',
-          border: 'none',
-          borderRadius: '16px',
-          fontFamily: fonts.regular,
-          fontSize: '17px',
-          fontWeight: 'bold',
-          cursor: 'pointer',
-          boxShadow: '0 10px 30px #FF6B9D44',
-        }}>
-          {step === slides.length - 1 ? 'يلا نبدأ 🚀' : 'التالي'}
-        </button>
       </div>
     )
   }
 
-  // مرحلة البيانات (Profile)
+  // ============ Goal Selection ============
   return (
-    <div style={{
-      minHeight: '100dvh',
-      padding: '32px 24px calc(32px + env(safe-area-inset-bottom))',
-      background: colors.background,
-      fontFamily: fonts.regular,
-      boxSizing: 'border-box',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
-      <h1 style={{ color: colors.text, fontSize: 'clamp(22px, 6vw, 26px)', fontWeight: 'bold', marginBottom: '8px', marginTop: 0 }}>
-        لنخصص تجربتك
-      </h1>
-      <p style={{ color: colors.textMuted, marginBottom: '32px', fontSize: '15px', margin: '0 0 32px 0' }}>
-        سنساعدك بخطة مخصصة لهدفك
-      </p>
-
-      <label style={{ color: colors.text, marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>ما اسمك؟</label>
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="مثلاً: أبو"
-        style={{
-          width: '100%',
-          padding: '16px',
-          background: colors.surface,
-          border: '1px solid #2A2A3E',
-          borderRadius: '14px',
-          color: colors.text,
-          fontFamily: fonts.regular,
-          fontSize: '16px',
-          marginBottom: '28px',
-          boxSizing: 'border-box',
-          outline: 'none',
-        }}
-      />
-
-      <label style={{ color: colors.text, marginBottom: '12px', fontSize: '14px', fontWeight: 'bold' }}>ما هو هدفك الأساسي؟</label>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {[
-          { key: 'lose', label: 'إنقاص الوزن', emoji: '📉' },
-          { key: 'maintain', label: 'الحفاظ على وزني', emoji: '⚖️' },
-          { key: 'gain', label: 'زيادة الوزن', emoji: '📈' },
-        ].map((g) => (
-          <div
-            key={g.key}
-            onClick={() => setGoal(g.key)}
-            style={{
-              padding: '16px',
-              background: goal === g.key ? '#FF6B9D22' : colors.surface,
-              border: `2px solid ${goal === g.key ? colors.primary : '#2A2A3E'}`,
-              borderRadius: '14px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              color: colors.text,
-              transition: 'all 0.2s',
-            }}
-          >
-            <span style={{ fontSize: '20px', marginLeft: '12px' }}>{g.emoji}</span>
-            <span style={{ fontSize: '15px' }}>{g.label}</span>
-          </div>
-        ))}
+    <div style={{ minHeight: '100dvh', background: COLORS.bg, padding: '24px', paddingBottom: 'calc(24px + env(safe-area-inset-bottom))', fontFamily: 'inherit', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ marginTop: '20px', marginBottom: '32px' }}>
+        <button onClick={() => setStep(slides.length - 1)} style={{ background: 'transparent', border: 'none', color: COLORS.muted, padding: 0, cursor: 'pointer', marginBottom: '16px', fontFamily: 'inherit' }}>
+          <ChevronLeft size={24} color={COLORS.muted} />
+        </button>
+        <h1 style={{ color: COLORS.text, fontSize: '30px', fontWeight: 800, margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>
+          لنخصص تجربتك
+        </h1>
+        <p style={{ color: COLORS.muted, fontSize: '15px', margin: 0 }}>
+          سنساعدك بخطة مخصصة لهدفك
+        </p>
       </div>
 
-      <div style={{ flex: 1 }} />
+      {/* Name Input */}
+      <div style={{ marginBottom: '32px' }}>
+        <label style={{ color: COLORS.text, fontSize: '14px', fontWeight: 600, marginBottom: '10px', display: 'block' }}>ما اسمك؟</label>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="مثلاً: أبو محمد"
+          style={{
+            width: '100%',
+            padding: '18px 20px',
+            background: COLORS.card,
+            border: `1.5px solid ${name ? COLORS.pink : COLORS.border}`,
+            borderRadius: '16px',
+            color: COLORS.text,
+            fontSize: '16px',
+            fontFamily: 'inherit',
+            boxSizing: 'border-box',
+            outline: 'none',
+            transition: 'border-color 0.2s',
+          }}
+        />
+      </div>
+
+      {/* Goal Selection - Cards with icons */}
+      <label style={{ color: COLORS.text, fontSize: '14px', fontWeight: 600, marginBottom: '12px', display: 'block' }}>ما هو هدفك الأساسي؟</label>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {goalOptions.map((g) => {
+          const active = goal === g.key
+          return (
+            <button
+              key={g.key}
+              onClick={() => setGoal(g.key)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                padding: '18px',
+                background: active ? COLORS.cardActive : COLORS.card,
+                border: `1.5px solid ${active ? g.color : COLORS.border}`,
+                borderRadius: '18px',
+                cursor: 'pointer',
+                textAlign: 'right',
+                fontFamily: 'inherit',
+                transition: 'all 0.2s ease',
+                boxShadow: active ? `0 8px 24px ${g.color}33` : 'none',
+              }}
+            >
+              <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: active ? g.color : COLORS.border, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <g.Icon size={26} color="white" strokeWidth={2.2} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ color: COLORS.text, fontSize: '16px', fontWeight: 700, marginBottom: '2px' }}>{g.label}</div>
+                <div style={{ color: COLORS.muted, fontSize: '13px' }}>{g.sub}</div>
+              </div>
+              <div style={{ width: '22px', height: '22px', borderRadius: '50%', border: `2px solid ${active ? g.color : COLORS.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {active && <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: g.color }} />}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      <div style={{ flex: 1, minHeight: '24px' }} />
 
       <button
         onClick={handleFinish}
+        disabled={name.trim().length < 2}
         style={{
           width: '100%',
-          padding: '18px',
-          background: 'linear-gradient(90deg, #FF6B9D, #FFA726)',
-          color: 'white',
+          padding: '20px',
+          background: name.trim().length >= 2 ? `linear-gradient(90deg, ${COLORS.pink}, ${COLORS.orange})` : COLORS.border,
+          color: name.trim().length >= 2 ? 'white' : COLORS.muted,
           border: 'none',
-          borderRadius: '16px',
-          fontFamily: fonts.regular,
+          borderRadius: '20px',
           fontSize: '17px',
-          fontWeight: 'bold',
-          cursor: 'pointer',
-          marginTop: '24px',
-          boxShadow: '0 10px 30px #FF6B9D44',
+          fontWeight: 700,
+          cursor: name.trim().length >= 2 ? 'pointer' : 'not-allowed',
+          fontFamily: 'inherit',
+          boxShadow: name.trim().length >= 2 ? `0 12px 40px ${COLORS.pink}66` : 'none',
+          transition: 'all 0.3s ease',
         }}
       >
         ابدأ رحلتي 🎉
@@ -184,13 +218,13 @@ export default function OnboardingScreen({ onComplete, onSkipToLogin }: Props) {
         onClick={onSkipToLogin}
         style={{
           width: '100%',
-          padding: '14px',
+          padding: '16px',
           background: 'transparent',
-          color: colors.textMuted,
+          color: COLORS.muted,
           border: 'none',
-          fontFamily: fonts.regular,
           fontSize: '14px',
           cursor: 'pointer',
+          fontFamily: 'inherit',
           marginTop: '8px',
         }}
       >
