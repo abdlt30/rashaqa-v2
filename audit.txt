@@ -1,0 +1,170 @@
+import React, { useState } from 'react'
+import { Flame, Droplet, Sparkles, TrendingUp } from 'lucide-react'
+import { useStore } from '../store/useStore'
+import { askAi } from '../services/aiService'
+
+export default function HomeScreen() {
+  const user = useStore((s: any) => s.user)
+  const meals = useStore((s: any) => s.meals)
+  const waterCups = useStore((s: any) => s.waterCups)
+  const setWaterCups = useStore((s: any) => s.setWaterCups)
+  const addMeal = useStore((s: any) => s.addMeal)
+  const [loading, setLoading] = useState(false)
+  const total = meals.reduce((sum: number, m: any) => sum + (m.calories || 0), 0)
+  const target = user?.targetCalories || 2300
+  const remaining = target - total
+  const handleSuggest = async () => {
+    setLoading(true)
+    try {
+      const res = await askAi('suggest', { body: { country: user?.country || 'SA', goal: user?.goal || 'maintain', remainingCalories: remaining } })
+      if (res?.ok && res.data) addMeal(res.data)
+    } finally { setLoading(false) }
+  }
+  return (
+    <div style={{ padding: '16px 16px 100px', fontFamily: 'var(--font-arabic)', background: 'var(--color-bg-base)', minHeight: '100dvh' }}>
+      <h1 style={{ color: 'var(--color-text-primary)' }}>مرحباً {user?.name || 'ضيف'}</h1>
+      <div style={{ background: 'var(--color-surface-1)', padding: 24, borderRadius: 'var(--radius-xl)', textAlign: 'center', marginTop: 16 }}>
+        <p style={{ color: 'var(--color-text-muted)' }}>السعرات المتبقية</p>
+        <h2 style={{ fontSize: 48, color: 'var(--color-text-primary)', margin: 8 }}>{remaining}</h2>
+      </div>
+      <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
+        <button onClick={handleSuggest} disabled={loading} style={{ flex: 1, padding: 14, background: 'var(--color-primary-500)', color: 'white', border: 'none', borderRadius: 'var(--radius-md)', fontWeight: 600, cursor: 'pointer' }}>{loading ? 'جاري...' : 'اقترح لي'}</button>
+        <button onClick={() => setWaterCups(waterCups + 1)} style={{ flex: 1, padding: 14, background: 'var(--color-surface-1)', color: 'var(--color-text-primary)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-md)', fontWeight: 600, cursor: 'pointer' }}>ماء ({waterCups})</button>
+      </div>
+    </div>
+  )
+}
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+
+interface AppState {
+  isOnboarded: boolean
+  isLoggedIn: boolean
+  user: { name: string; weight: number; targetCalories: number; country: string; goal: string } | null
+  meals: any[]
+  waterCups: number
+  plan: 'free' | 'gold'
+  completeOnboarding: (data: { name: string; goal: string }) => void
+  login: (email: string) => void
+  skipLogin: () => void
+  addMeal: (meal: any) => void
+  setWaterCups: (cups: number) => void
+  upgradeToGold: () => void
+  signOut: () => void
+}
+
+export const useStore = create<AppState>()(
+  persist(
+    (set) => ({
+      isOnboarded: false,
+      isLoggedIn: false,
+      user: null,
+      meals: [],
+      waterCups: 0,
+      plan: 'free',
+      completeOnboarding: (data) =>
+        set({
+          isOnboarded: true,
+          user: {
+            name: data.name,
+            weight: 69,
+            targetCalories: 2300,
+            country: 'MA',
+            goal: data.goal,
+          },
+        }),
+      login: (email) => set({ isLoggedIn: true, isOnboarded: true }),
+      skipLogin: () => set({ isOnboarded: true, isLoggedIn: false }),
+      addMeal: (meal) => set((s) => ({ meals: [...s.meals, meal] })),
+      setWaterCups: (cups) => set({ waterCups: cups }),
+      upgradeToGold: () => set({ plan: 'gold' }),
+      signOut: () => set({ isLoggedIn: false, user: null, meals: [], waterCups: 0 }),
+    }),
+    { name: 'rashaqa-store' }
+  )
+)
+import { supabase } from '../lib/supabase'
+
+const AI_FUNCTION_URL = 'https://axthmghawwishcjlldfj.supabase.co/functions/v1/smart-service'
+
+export async function askAi(action: string, payload: any) {
+  try {
+    // احصل على الجلسة الحالية
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session?.access_token) {
+      return { ok: false, error: 'يجب تسجيل الدخول أولاً' }
+    }
+
+    const response = await fetch(AI_FUNCTION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ action, ...payload }),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      return { ok: false, error: data?.error || `HTTP ${response.status}` }
+    }
+
+    return data
+  } catch (error) {
+    console.error('AI Service Error:', error)
+    return { ok: false, error: 'حدث خطأ في الاتصال بالمدرب الذكي' }
+  }
+}
+src/:
+App.css
+App.tsx
+assets
+components
+features
+index.css
+lib
+main.tsx
+screens
+services
+store
+theme
+
+src/assets:
+hero.png
+react.svg
+vite.svg
+
+src/components:
+BottomNav.tsx
+ErrorBoundary.tsx
+
+src/features:
+onboarding
+
+src/features/onboarding:
+OnboardingFlow.tsx
+calc.ts
+store.ts
+
+src/lib:
+supabase.ts
+
+src/screens:
+HomeScreen.tsx
+LoginScreen.tsx
+OnboardingScreen.tsx
+ProfileScreen.tsx
+ReportsScreen.tsx
+WorkoutsScreen.tsx
+
+src/services:
+aiService.ts
+
+src/store:
+useStore.ts
+
+src/theme:
+theme.ts
+tokens.css
