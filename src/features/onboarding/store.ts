@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { OnboardingData, NutritionTargets } from './calc'
+import type { OnboardingData, NutritionTargets } from './calc'
 
 interface OnboardingState {
   data: Partial<OnboardingData>
