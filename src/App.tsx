@@ -1,5 +1,6 @@
 import React from 'react'
 import { HashRouter, Routes, Route } from 'react-router-dom'
+import { AdProviderRoot } from './core/ads/AdContext'
 import BottomNav from './components/BottomNav'
 import OnboardingFlow from './features/onboarding/OnboardingFlow'
 import HomeScreen from './screens/HomeScreen'
@@ -8,7 +9,7 @@ import ReportsScreen from './screens/ReportsScreen'
 import ProfileScreen from './screens/ProfileScreen'
 import { useStore } from './store/useStore'
 
-function App() {
+function AppContent() {
   const isOnboarded = useStore((s) => s.isOnboarded)
 
   if (!isOnboarded) {
@@ -32,6 +33,14 @@ function App() {
         <BottomNav />
       </div>
     </HashRouter>
+  )
+}
+
+function App() {
+  return (
+    <AdProviderRoot>
+      <AppContent />
+    </AdProviderRoot>
   )
 }
 
