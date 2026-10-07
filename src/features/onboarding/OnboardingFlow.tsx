@@ -8,7 +8,8 @@ import {
 import { supabase } from '../../lib/supabase'
 import { useStore } from '../../store/useStore'
 import { useOnboarding } from './store'
-import { calculateTargets, OnboardingData } from './calc'
+import { calculateTargets } from './calc'
+import type { OnboardingData } from './calc'
 
 /* ============================================================
    REUSABLE COMPONENTS
