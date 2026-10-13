@@ -1,5 +1,5 @@
 import { User, Ruler, Flag, Bell, Globe, Moon, Crown, HelpCircle, Shield, Info, ChevronLeft, Pencil } from 'lucide-react';
-
+import { useNavigate } from 'react-router-dom'
 const C = {
   bg: 'var(--color-bg-base, #FAF7F0)',
   card: 'var(--color-bg-card, #FFFFFF)',
@@ -55,8 +55,9 @@ export default function ProfileScreen() {
             <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18, margin: 0 }}>ضيف</h2>
             <p style={{ color: '#C9E6D8', fontSize: 12, margin: '4px 0 0' }}>ابدأ رحلتك الصحية اليوم</p>
           </div>
-          <button style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', padding: 8, cursor: 'pointer' }}>
-            <Pencil size={18} color="#fff" />
+          <button style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', padding: 8, cursor: 'pointer' }}
+           onClick={() => navigate('/premium')}>
+          <Pencil size={18} color="#fff" />
           </button>
         </div>
       </section>
