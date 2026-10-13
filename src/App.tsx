@@ -7,6 +7,8 @@ import HomeScreen from './screens/HomeScreen'
 import WorkoutsScreen from './screens/WorkoutsScreen'
 import ReportsScreen from './screens/ReportsScreen'
 import ProfileScreen from './screens/ProfileScreen'
+import VisionScreen from './screens/VisionScreen'
+import PremiumScreen from './screens/PremiumScreen'
 import { useStore } from './store/useStore'
 
 function AppContent() {
@@ -29,6 +31,8 @@ function AppContent() {
           <Route path="/workouts" element={<WorkoutsScreen />} />
           <Route path="/reports" element={<ReportsScreen />} />
           <Route path="/profile" element={<ProfileScreen />} />
+          <Route path="/vision" element={<VisionScreen />} />
+          <Route path="/premium" element={<PremiumScreen />} />
         </Routes>
         <BottomNav />
       </div>
