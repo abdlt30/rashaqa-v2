@@ -358,7 +358,6 @@ function RevealStep({ data, targets, onNext, onBack }: { data: any; targets: any
           <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--fs-body)', margin: 0 }}>هذه نقطة البداية — يمكنك تعديلها لاحقاً</p>
         </div>
 
-        {/* Big Calories */}
         <div style={{
           background: 'var(--color-surface-1)', border: '1px solid var(--color-border-subtle)',
           borderRadius: 'var(--radius-xl)', padding: 32, textAlign: 'center', marginBottom: 20,
@@ -371,7 +370,6 @@ function RevealStep({ data, targets, onNext, onBack }: { data: any; targets: any
           <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--fs-body-sm)', marginTop: 8 }}>سعرة / يوم</div>
         </div>
 
-        {/* Macros */}
         <div style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', padding: 20, marginBottom: 20 }}>
           <div style={{ color: 'var(--color-text-primary)', fontSize: 'var(--fs-h3)', fontWeight: 600, marginBottom: 16 }}>توزيع الماكروز</div>
           {macros.map((m) => (
@@ -387,7 +385,6 @@ function RevealStep({ data, targets, onNext, onBack }: { data: any; targets: any
           ))}
         </div>
 
-        {/* Water */}
         <div style={{ background: 'var(--color-surface-1)', border: '1px solid var(--color-border-subtle)', borderRadius: 'var(--radius-lg)', padding: 16, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
           <Droplet size={24} color="var(--color-info)" />
           <div style={{ flex: 1 }}>
@@ -396,7 +393,6 @@ function RevealStep({ data, targets, onNext, onBack }: { data: any; targets: any
           </div>
         </div>
 
-        {/* Arabic Badge */}
         <div style={{
           background: 'linear-gradient(135deg, rgba(31,111,95,0.12), rgba(201,169,97,0.08))',
           border: '1px solid rgba(31,111,95,0.25)',
@@ -417,7 +413,14 @@ function RevealStep({ data, targets, onNext, onBack }: { data: any; targets: any
   )
 }
 
-function AccountStep({ onComplete, onSkip, onBack }: { onComplete: (email: string) => Promise<void>; onSkip: () => void; onBack: () => void }) {
+/* ============================================================
+   ACCOUNT STEP — MODIFIED ✅
+   ============================================================ */
+function AccountStep({ onComplete, onSkip, onBack }: {
+  onComplete: (email: string, password: string) => Promise<void>;
+  onSkip: () => void;
+  onBack: () => void;
+}) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -430,10 +433,30 @@ function AccountStep({ onComplete, onSkip, onBack }: { onComplete: (email: strin
 
   const handleSubmit = async () => {
     if (!valid) return
-    setLoading(true); setError('')
-    try { await onComplete(email) }
-    catch (e: any) { setError(e?.message || 'حدث خطأ') }
-    finally { setLoading(false) }
+    setLoading(true)
+    setError('')
+    try {
+      await onComplete(email, password) // ✅ تمرير كلمة المرور
+    } catch (e: any) {
+      const msg = (e?.message || '').toLowerCase()
+      if (msg.includes('already registered') || msg.includes('user already')) {
+        setError('هذا البريد مسجل مسبقاً — جرب تسجيل الدخول من الشاشة الرئيسية')
+      } else if (msg.includes('invalid login') || msg.includes('invalid credentials')) {
+        setError('البريد أو كلمة المرور غير صحيحة')
+      } else if (msg.includes('rate limit') || msg.includes('too many')) {
+        setError('تجاوزت الحد المسموح، انتظر دقيقة ثم حاول مجدداً')
+      } else if (msg.includes('not confirmed') || msg.includes('email not')) {
+        setError('يجب تأكيد بريدك الإلكتروني — تحقق من صندوق الوارد')
+      } else if (msg.includes('network') || msg.includes('fetch')) {
+        setError('تعذر الاتصال بالإنترنت — تحقق من اتصالك')
+      } else if (msg.includes('password')) {
+        setError('كلمة المرور ضعيفة — استخدم 8 أحرف على الأقل مع أرقام')
+      } else {
+        setError(e?.message || 'حدث خطأ غير متوقع، حاول مجدداً')
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -446,15 +469,30 @@ function AccountStep({ onComplete, onSkip, onBack }: { onComplete: (email: strin
           حسابك يحفظ تقدمك ويُزامن بين الأجهزة
         </p>
 
-        <TextInput label="البريد الإلكتروني" value={email} onChange={setEmail} placeholder="you@example.com" type="email" />
+        <TextInput label="البريد الإلكتروني" value={email} onChange={(v) => { setEmail(v); if (error) setError('') }} placeholder="you@example.com" type="email" />
         <div style={{ position: 'relative' }}>
-          <TextInput label="كلمة المرور" value={password} onChange={setPassword} placeholder="8 أحرف على الأقل" type={showPass ? 'text' : 'password'} />
+          <TextInput label="كلمة المرور" value={password} onChange={(v) => { setPassword(v); if (error) setError('') }} placeholder="8 أحرف على الأقل" type={showPass ? 'text' : 'password'} />
           <button onClick={() => setShowPass(!showPass)} style={{ position: 'absolute', left: 14, top: 44, background: 'transparent', border: 'none', cursor: 'pointer', padding: 4 }}>
             {showPass ? <EyeOff size={18} color="var(--color-text-muted)" /> : <Eye size={18} color="var(--color-text-muted)" />}
           </button>
         </div>
 
-        {error && <p style={{ color: 'var(--color-error)', fontSize: 'var(--fs-body-sm)', marginTop: -12, marginBottom: 16 }}>{error}</p>}
+        {error && (
+          <div style={{
+            background: 'rgba(255,100,100,0.08)',
+            border: '1px solid rgba(255,100,100,0.25)',
+            borderRadius: 'var(--radius-md)',
+            padding: 12,
+            marginTop: -8,
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}>
+            <span style={{ fontSize: 16 }}>⚠️</span>
+            <p style={{ color: 'var(--color-error)', fontSize: 'var(--fs-body-sm)', margin: 0, flex: 1 }}>{error}</p>
+          </div>
+        )}
       </div>
 
       <div style={{ padding: '24px 24px calc(32px + env(safe-area-inset-bottom))' }}>
@@ -466,7 +504,7 @@ function AccountStep({ onComplete, onSkip, onBack }: { onComplete: (email: strin
 }
 
 /* ============================================================
-   MAIN FLOW
+   MAIN FLOW — MODIFIED ✅
    ============================================================ */
 
 export default function OnboardingFlow() {
@@ -481,7 +519,6 @@ export default function OnboardingFlow() {
   const handleGoalNext = () => goNext()
 
   const handleDietNext = () => {
-    // Calculate targets
     setCalculating(true)
     setTimeout(() => {
       const t = calculateTargets(data as OnboardingData)
@@ -491,29 +528,80 @@ export default function OnboardingFlow() {
     }, 800)
   }
 
-  const handleAccountCreate = async (email: string) => {
-    const { data: authData, error } = await supabase.auth.signUp({
+  // ✅ FIXED: use real password + handle already-registered
+  const handleAccountCreate = async (email: string, password: string) => {
+    let userId: string | null = null
+
+    // 1. جرّب إنشاء الحساب أولاً
+    const { data: signupData, error: signupError } = await supabase.auth.signUp({
       email,
-      password: 'temp-placeholder', // will be handled properly
+      password, // ✅ كلمة المرور الحقيقية
     })
-    if (error) throw error
-    // Save profile to supabase
-    if (authData.user) {
-      await supabase.from('profiles').upsert({
-        id: authData.user.id,
-        name: data.name || '',
-        country: 'MA',
-        gender: data.gender,
-        birth_date: null,
-        height_cm: data.height_cm,
-        activity_level: data.activity_level,
-        goal: data.goal,
-        target_weight_kg: data.target_weight_kg,
-        daily_calorie_target: targets?.calories,
-        onboarding_completed: true,
-      })
+
+    // 2. إذا كان البريد موجوداً → سجّل الدخول بدلاً منه
+    if (
+      signupError?.message?.includes('already registered') ||
+      signupError?.message?.includes('User already')
+    ) {
+      const { data: loginData, error: loginError } =
+        await supabase.auth.signInWithPassword({ email, password })
+
+      if (loginError) {
+        throw new Error(
+          'هذا البريد مسجل بكلمة مرور مختلفة. جرّب "نسيت كلمة المرور"'
+        )
+      }
+      userId = loginData.user?.id || null
     }
-    // Update local store
+    // 3. خطأ آخر غير متوقع
+    else if (signupError) {
+      throw signupError
+    }
+    // 4. نجح التسجيل
+    else {
+      userId = signupData.user?.id || null
+
+      // إذا لم يكن هناك session مباشرة → نحاول تسجيل الدخول فوراً
+      if (signupData.user && !signupData.session) {
+        const { data: loginData, error: loginError } =
+          await supabase.auth.signInWithPassword({ email, password })
+
+        if (loginError?.message?.includes('not confirmed')) {
+          throw new Error(
+            'تم إنشاء حسابك ✅ — يرجى تأكيد بريدك الإلكتروني ثم تسجيل الدخول'
+          )
+        }
+        if (!loginError && loginData.user) {
+          userId = loginData.user.id
+        }
+      }
+    }
+
+    // 5. حفظ الملف الشخصي في Supabase
+    if (userId) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: userId,
+          name: data.name || '',
+          country: 'MA',
+          gender: data.gender,
+          birth_date: null,
+          height_cm: data.height_cm,
+          weight_kg: data.weight_kg,
+          activity_level: data.activity_level,
+          goal: data.goal,
+          target_weight_kg: data.target_weight_kg,
+          daily_calorie_target: targets?.calories,
+          onboarding_completed: true,
+        })
+
+      if (profileError) {
+        console.warn('Profile save warning:', profileError)
+      }
+    }
+
+    // 6. تحديث الحالة المحلية + الانتقال للتطبيق
     completeOnboarding({
       name: data.name || 'صديق',
       goal: data.goal || 'maintain',
@@ -526,7 +614,6 @@ export default function OnboardingFlow() {
     skipLogin()
   }
 
-  // Calc loading
   if (calculating) {
     return (
       <div style={{ minHeight: '100dvh', background: 'var(--color-bg-base)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, fontFamily: 'var(--font-arabic)' }}>
