@@ -229,8 +229,8 @@ export default function HomeScreen() {
         border: '1px solid var(--color-border-subtle)',
         borderRadius: 'var(--radius-lg)',
       }}>
-        <QuickAction Icon={Camera} label="تصوير" onClick={() => {}} />
-        <QuickAction Icon={Mic} label="صوت" onClick={() => {}} />
+        <QuickAction Icon={Camera} label="تصوير" onClick={() => navigate('/vision')} />
+        <QuickAction Icon={Mic} label="صوت" onClick={() => navigate('/vision')} />
         <QuickAction Icon={Search} label="بحث" onClick={() => navigate('/reports')} />
         <QuickAction Icon={Plus} label="إضافة" onClick={handleSuggest} />
         <QuickAction Icon={Droplet} label="ماء" onClick={() => setWaterCups(waterCups + 1)} />
