@@ -511,7 +511,13 @@ export default function OnboardingFlow() {
   const [step, setStep] = useState(0)
   const [calculating, setCalculating] = useState(false)
   const { data, targets, update, setTargets, reset } = useOnboarding()
-  const { completeOnboarding, skipLogin, login } = useStore()
+  const {
+  completeOnboarding,
+  skipLogin,
+  login,
+  setUserId,
+  setTargets: setStoreTargets,
+} = useStore()
 
   const goNext = () => setStep((s) => s + 1)
   const goBack = () => setStep((s) => Math.max(0, s - 1))
