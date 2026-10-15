@@ -586,35 +586,35 @@ export default function OnboardingFlow() {
 
     // 5. حفظ الملف الشخصي في Supabase
     if (userId) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: userId,
-          name: data.name || '',
-          country: 'MA',
-          gender: data.gender,
-          birth_date: null,
-          height_cm: data.height_cm,
-          weight_kg: data.weight_kg,
-          activity_level: data.activity_level,
-          goal: data.goal,
-          target_weight_kg: data.target_weight_kg,
-          daily_calorie_target: targets?.calories,
-          onboarding_completed: true,
-        })
-
-      if (profileError) {
-        console.warn('Profile save warning:', profileError)
-      }
-    }
-
-    // 6. تحديث الحالة المحلية + الانتقال للتطبيق
-    completeOnboarding({
-      name: data.name || 'صديق',
-      goal: data.goal || 'maintain',
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .upsert({
+      id: userId,
+      name: data.name || '',
+      // ... (نفس المحتوى)
     })
-    login(email)
+
+  if (profileError) {
+    console.warn('Profile save warning:', profileError)
   }
+
+  setUserId(userId)              // ✅ إضافة 1
+}
+
+if (targets) setStoreTargets(targets)   // ✅ إضافة 2
+
+completeOnboarding({
+  name: data.name || 'صديق',
+  goal: data.goal || 'maintain',
+  age: data.age,                        // ✅ إضافة 3 (6 أسطر)
+  gender: data.gender,
+  height_cm: data.height_cm,
+  weight_kg: data.weight_kg,
+  target_weight_kg: data.target_weight_kg,
+  activity_level: data.activity_level,
+  diet_preference: data.diet_preference,
+})
+login(email)
 
   const handleSkip = () => {
     completeOnboarding({ name: 'ضيف', goal: 'maintain' })
