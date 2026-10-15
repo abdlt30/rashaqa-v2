@@ -61,10 +61,10 @@ export default function ProfileScreen() {
   };
 
   const openMeasurements = () => {
-    setFormHeight(String(user?.height_cm || ''));
-    setFormWeight(String(user?.weight_kg || ''));
-    setModal('measurements');
-  };
+  setFormHeight(String(user?.height_cm || ''));
+  setFormWeight(String(user?.weight_kg || user?.weight || ''));
+  setModal('measurements');
+};
 
   const openGoal = () => {
     setFormGoal(user?.goal || 'maintain');
@@ -74,48 +74,53 @@ export default function ProfileScreen() {
 
   // ========== Save handlers ==========
   const saveToSupabase = async (updates: Record<string, any>) => {
-    if (!userId) {
-      alert('يجب تسجيل الدخول أولاً');
-      return false;
-    }
-    const { error } = await supabase
-      .from('profiles')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', userId);
+  if (!userId) {
+    alert('يجب تسجيل الدخول أولاً');
+    return false;
+  }
+  console.log('Saving to Supabase:', updates);
+  
+  const { error } = await supabase
+    .from('profiles')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', userId);
 
     if (error) {
       alert('فشل الحفظ: ' + error.message);
       return false;
     }
     return true;
-  };
+  }
 
   const handleSavePersonal = async () => {
-    const name = formName.trim();
-    const age = parseInt(formAge, 10);
+  const name = formName.trim();
+  const age = parseInt(formAge, 10);
 
-    if (name.length < 2) return alert('الاسم قصير جداً');
-    if (!age || age < 14 || age > 90) return alert('العمر يجب أن يكون بين 14 و 90');
+  console.log('Parsed personal:', { name, age, formName, formAge });
 
-    setSaving(true);
-    const ok = await saveToSupabase({ name, age });
-    if (ok) {
-      // Update local store
-      completeOnboarding({
-        name,
-        goal: user?.goal || 'maintain',
-        age,
-        gender: user?.gender,
-        height_cm: user?.height_cm,
-        weight_kg: user?.weight,
-        target_weight_kg: user?.target_weight_kg,
-        activity_level: user?.activity_level,
-        diet_preference: user?.diet_preference,
-      });
-      setModal(null);
-    }
-    setSaving(false);
-  };
+  if (name.length < 2) return alert('الاسم قصير جداً');
+  if (!age || isNaN(age) || age < 14 || age > 90) {
+    return alert(`العمر غير صالح: "${formAge}"`);
+  }
+
+  setSaving(true);
+  const ok = await saveToSupabase({ name, age });
+  if (ok) {
+    completeOnboarding({
+      name,
+      goal: user?.goal || 'maintain',
+      age,
+      gender: user?.gender,
+      height_cm: user?.height_cm,
+      weight_kg: user?.weight_kg || user?.weight,
+      target_weight_kg: user?.target_weight_kg,
+      activity_level: user?.activity_level,
+      diet_preference: user?.diet_preference,
+    });
+    setModal(null);
+  }
+  setSaving(false);
+};
 
   const handleSaveMeasurements = async () => {
     const height = parseInt(formHeight, 10);
