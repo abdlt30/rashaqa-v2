@@ -85,10 +85,11 @@ export default function HomeScreen() {
 
   const [loading, setLoading] = useState(false)
 
-  const targetCalories = user?.targetCalories || 2300
-  const targetProtein = 154
-  const targetCarbs = 277
-  const targetFat = 82
+  const targets = useStore((s) => s.targets)
+const targetCalories = targets?.calories || user?.targetCalories || 2300
+const targetProtein = targets?.protein_g || 138
+const targetCarbs = targets?.carbs_g || 248
+const targetFat = targets?.fat_g || 73
 
   const consumed = useMemo(() => ({
     calories: meals.reduce((s: number, m: Meal) => s + (m.calories || 0), 0),
