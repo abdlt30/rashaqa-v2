@@ -606,7 +606,8 @@ export default function OnboardingFlow() {
     })
 
   if (profileError) {
-    console.warn('Profile save warning:', profileError)
+  console.warn('Profile save warning:', profileError)
+  alert('DB ERROR:\n' + profileError.message + '\nCode: ' + profileError.code)
   }
 
   setUserId(userId)              // ✅ إضافة 1
