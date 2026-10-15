@@ -625,7 +625,7 @@ completeOnboarding({
   diet_preference: data.diet_preference,
 })
 login(email)
-
+  }
   const handleSkip = () => {
     completeOnboarding({ name: 'ضيف', goal: 'maintain' })
     skipLogin()
