@@ -537,7 +537,8 @@ export default function OnboardingFlow() {
 
   // ✅ FIXED: use real password + handle already-registered
   const handleAccountCreate = async (email: string, password: string) => {
-    let userId: string | null = null
+  alert('DEBUG DATA:\n' + JSON.stringify(data, null, 2))
+  let userId: string | null = null
 
     // 1. جرّب إنشاء الحساب أولاً
     const { data: signupData, error: signupError } = await supabase.auth.signUp({
