@@ -529,6 +529,7 @@ export default function OnboardingFlow() {
     setTimeout(() => {
       const t = calculateTargets(data as OnboardingData)
       setTargets(t)
+      setStoreTargets(t)
       setCalculating(false)
       goNext()
     }, 800)
