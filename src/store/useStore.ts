@@ -14,6 +14,7 @@ export interface MacroTargets {
 export interface UserProfile {
   name: string
   weight: number
+  weight_kg?: number        // ← أضف هذا
   targetCalories: number
   country: string
   goal: string
@@ -103,6 +104,7 @@ export const useStore = create<AppState>()(
           user: {
             name: data.name,
             weight: data.weight_kg || 69,
+            weight_kg: data.weight_kg,
             targetCalories: 2300, // سيُستبدل بـ targets.calories
             country: 'MA',
             goal: data.goal,
