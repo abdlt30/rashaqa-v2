@@ -1,5 +1,6 @@
 import { User, Ruler, Flag, Bell, Globe, Moon, Crown, HelpCircle, Shield, Info, ChevronLeft, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom'
+import { useStore } from '../store/useStore'
 const C = {
   bg: 'var(--color-bg-base, #FAF7F0)',
   card: 'var(--color-bg-card, #FFFFFF)',
@@ -11,39 +12,54 @@ const C = {
   red: '#E44C4C',
 };
 
-const SECTIONS = [
-  {
-    title: 'الحساب',
-    items: [
-      { icon: User, label: 'البيانات الشخصية', sub: 'ضيف • 28 سنة' },
-      { icon: Ruler, label: 'القياسات', sub: '172 سم • 74.2 كجم' },
-      { icon: Flag, label: 'الهدف', sub: 'إنقاص الوزن' },
-    ],
-  },
-  {
-    title: 'التفضيلات',
-    items: [
-      { icon: Bell, label: 'الإشعارات', sub: 'مفعّلة' },
-      { icon: Globe, label: 'اللغة', sub: 'العربية' },
-      { icon: Moon, label: 'الوضع الليلي', sub: 'معطّل' },
-    ],
-  },
-  {
-    title: 'الدعم',
-    items: [
-      { icon: HelpCircle, label: 'المساعدة', sub: '' },
-      { icon: Shield, label: 'سياسة الخصوصية', sub: '' },
-      { icon: Info, label: 'عن التطبيق', sub: 'v1.0.0' },
-    ],
-  },
-];
+// دالة لترجمة الهدف
+const GOAL_LABELS: Record<string, string> = {
+  lose: 'إنقاص الوزن',
+  maintain: 'الحفاظ على الوزن',
+  gain: 'زيادة الوزن',
+};
 
 export default function ProfileScreen() {
+  const user = useStore((s) => s.user);
+  const targets = useStore((s) => s.targets);
+  const navigate = useNavigate();
+
+  const userName = user?.name || 'ضيف';
+  const userAge = user?.age ? `${user.age} سنة` : '—';
+  const userMeasurements = user?.height_cm && user?.weight_kg
+    ? `${user.height_cm} سم • ${user.weight_kg} كجم`
+    : '—';
+  const userGoal = GOAL_LABELS[user?.goal || ''] || 'غير محدد';
+
+  const sections = [
+    {
+      title: 'الحساب',
+      items: [
+        { icon: User, label: 'البيانات الشخصية', sub: `${userName} • ${userAge}`, onPress: () => {} },
+        { icon: Ruler, label: 'القياسات', sub: userMeasurements, onPress: () => {} },
+        { icon: Flag, label: 'الهدف', sub: userGoal, onPress: () => {} },
+      ],
+    },
+    {
+      title: 'التفضيلات',
+      items: [
+        { icon: Bell, label: 'الإشعارات', sub: 'مفعّلة', onPress: () => {} },
+        { icon: Globe, label: 'اللغة', sub: 'العربية', onPress: () => {} },
+        { icon: Moon, label: 'الوضع الليلي', sub: 'معطّل', onPress: () => {} },
+      ],
+    },
+    {
+      title: 'الدعم',
+      items: [
+        { icon: HelpCircle, label: 'المساعدة', sub: '', onPress: () => {} },
+        { icon: Shield, label: 'سياسة الخصوصية', sub: '', onPress: () => {} },
+        { icon: Info, label: 'عن التطبيق', sub: 'v1.0.0', onPress: () => {} },
+      ],
+    },
+  ];
+
   return (
-    <div style={{ minHeight: '100vh', background: C.bg, paddingBottom: 100, direction: 'rtl', fontFamily: 'var(--font-arabic, system-ui)' }}>
-      <header style={{ padding: '28px 20px 16px' }}>
-        <h1 style={{ fontSize: 30, fontWeight: 800, color: C.text, margin: 0 }}>حسابي</h1>
-      </header>
+    <div style={{ minHeight: '100vh', background: C.bg, paddingBottom: 100, direction: 'rtl', fontFamily: 'var(--font-arabic)' }}>
 
       {/* User Card */}
       <section style={{ padding: '0 20px', marginBottom: 20 }}>
@@ -52,8 +68,10 @@ export default function ProfileScreen() {
             <User size={32} color="#fff" />
           </div>
           <div style={{ flex: 1 }}>
-            <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18, margin: 0 }}>ضيف</h2>
-            <p style={{ color: '#C9E6D8', fontSize: 12, margin: '4px 0 0' }}>ابدأ رحلتك الصحية اليوم</p>
+            <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18, margin: 0 }}>{userName}</h2>
+            <p style={{ color: '#C9E6D8', fontSize: 12, margin: '4px 0 0' }}>
+          {targets?.calories ? `هدفك اليومي: ${targets.calories} سعرة` : 'ابدأ رحلتك الصحية اليوم'}
+      </p>
           </div>
           <button style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', padding: 8, cursor: 'pointer' }}
            onClick={() => navigate('/premium')}>
@@ -76,7 +94,7 @@ export default function ProfileScreen() {
       </section>
 
       {/* Settings Sections */}
-      {SECTIONS.map((section, idx) => (
+       {sections.map((section, idx) => (
         <section key={idx} style={{ padding: '0 20px', marginBottom: 20 }}>
           <h3 style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, margin: '0 0 8px 4px', textTransform: 'uppercase', letterSpacing: 0.5 }}>
             {section.title}
