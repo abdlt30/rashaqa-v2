@@ -591,7 +591,17 @@ export default function OnboardingFlow() {
     .upsert({
       id: userId,
       name: data.name || '',
-      // ... (نفس المحتوى)
+      country: 'MA',
+      gender: data.gender || null,
+      birth_date: null,
+      height_cm: data.height_cm || null,
+      weight_kg: data.weight_kg || null,
+      activity_level: data.activity_level || null,
+      diet_preference: data.diet_preference || null,
+      goal: data.goal || 'maintain',
+      target_weight_kg: data.target_weight_kg || null,
+      daily_calorie_target: targets?.calories || null,
+      onboarding_completed: true,
     })
 
   if (profileError) {
