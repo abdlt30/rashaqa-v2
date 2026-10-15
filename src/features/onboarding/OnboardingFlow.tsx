@@ -537,7 +537,6 @@ export default function OnboardingFlow() {
 
   // ✅ FIXED: use real password + handle already-registered
   const handleAccountCreate = async (email: string, password: string) => {
-  alert('DEBUG DATA:\n' + JSON.stringify(data, null, 2))
   let userId: string | null = null
 
     // 1. جرّب إنشاء الحساب أولاً
@@ -607,7 +606,6 @@ export default function OnboardingFlow() {
 
   if (profileError) {
   console.warn('Profile save warning:', profileError)
-  alert('DB ERROR:\n' + profileError.message + '\nCode: ' + profileError.code)
   }
 
   setUserId(userId)              // ✅ إضافة 1
