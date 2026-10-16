@@ -75,6 +75,7 @@ interface AppState {
   setWaterCups: (cups: number) => Promise<void>; // ✅ أصبحت غير متزامنة
   upgradeToGold: () => void;
   signOut: () => Promise<void>;
+  logWorkout: (workout: { name: string; duration: number; caloriesBurned: number }) => Promise<void>;
   resetAll: () => void;
 }
 
@@ -213,6 +214,58 @@ export const useStore = create<AppState>()(
           console.error('Error logging water:', error);
         }
       },
+      
+      // ✅ تسجيل التمرين في Supabase
+      
+    logWorkout: async (workout) => {
+    const { userId } = get();
+  if (!userId) {
+    console.warn('User not logged in');
+    return;
+  }
+
+  try {
+    // 1. تسجيل النشاط في daily_progress
+    const { error: progressError } = await supabase
+      .from'daily_progress'
+      .insert({
+        user_id: userId,
+        activity_type: 'workout',
+        activity_name: workout.name,
+        duration_minutes: workout.duration,
+        calories_burned: workout.caloriesBurned,
+        logged_at: new Date().toISOString(),
+      });
+
+    if (progressError) throw progressError;
+
+    // 2. تحديث السلسلة (Streak)
+    const { data: streakData } = await supabase
+      .from'streaks'
+      .select('current_streak, last_activity_date')
+      .eq('user_id', userId)
+      .single();
+
+    const today = new Date().toISOString().split('T')[0];
+    if (streakData) {
+      const lastDate = streakData.last_activity_date;
+      const newStreak = lastDate === today ? streakData.current_streak : (streakData.current_streak || 0) + 1;
+      
+      await supabase
+        .from('streaks')
+        .update({ current_streak: newStreak, last_activity_date: today })
+        .eq('user_id', userId);
+    } else {
+      // إذا لم يكن هناك سجل سلسلة، ننشئ واحداً جديداً
+      await supabase
+        .from('streaks')
+        .insert({ user_id: userId, current_streak: 1, last_activity_date: today });
+    }
+  } catch (error) {
+    console.error('Error logging workout:', error);
+    throw error;
+  }
+},
 
       upgradeToGold: () => set({ plan: 'gold' }),
 
