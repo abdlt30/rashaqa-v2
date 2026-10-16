@@ -95,7 +95,7 @@ export default function VisionScreen() {
   };
 
   // ... (باقي الـ JSX كما هو)
-}
+
       // تحديد نوع الوجبة تلقائياً بناءً على الوقت
       const hour = new Date().getHours()
       let mealType = 'snack'
