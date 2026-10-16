@@ -121,7 +121,7 @@ export default function VisionScreen() {
     } finally {
       setSaving(false)
     }
-  }
+  
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg-base)', direction: 'rtl', paddingBottom: 100, fontFamily: 'var(--font-arabic)' }}>
