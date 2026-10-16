@@ -1,84 +1,101 @@
-import { useState, useRef } from 'react'
-import { Camera, Upload, X, Check, Loader } from 'lucide-react'
-import { supabase } from '../lib/supabase'
-import { useNavigate } from 'react-router-dom'
-import { useStore } from '../store/useStore' // ✅ 1. استيراد الـ Store
+import { useState, useRef } from 'react';
+import { Camera, Upload, X, Check, Loader } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useStore } from '../store/useStore';
+import { askAi } from '../services/aiService'; // ✅ استيراد الدالة الجديدة
 
 interface FoodAnalysis {
-  name: string
-  calories: number
-  protein: number
-  carbs: number
-  fat: number
-  ingredients: string[]
-  healthTip: string
-  confidence: number
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  ingredients: string[];
+  healthTip: string;
+  confidence: number;
 }
 
 export default function VisionScreen() {
-  const [image, setImage] = useState<string | null>(null)
-  const [analyzing, setAnalyzing] = useState(false)
-  const [result, setResult] = useState<FoodAnalysis | null>(null)
-  const [saving, setSaving] = useState(false)
-  const fileInput = useRef<HTMLInputElement>(null)
-  const navigate = useNavigate()
-  
-  // ✅ 2. جلب دالة addMeal من الـ Store
-  const addMeal = useStore((s) => s.addMeal)
+  const [image, setImage] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [result, setResult] = useState<FoodAnalysis | null>(null);
+  const [saving, setSaving] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
+  const addMeal = useStore((s) => s.addMeal);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
     reader.onload = (event) => {
-      const dataUrl = event.target?.result as string
-      setImage(dataUrl)
-      analyzeImage(dataUrl)
-    }
-    reader.readAsDataURL(file)
-  }
+      const dataUrl = event.target?.result as string;
+      setImage(dataUrl);
+      analyzeImage(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
 
+  // ✅ 1. دالة تحليل الصورة الجديدة (باستخدام aiService)
   const analyzeImage = async (base64: string) => {
-    setAnalyzing(true)
-    setResult(null)
+    setAnalyzing(true);
+    setResult(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        alert('يجب تسجيل الدخول أولاً')
-        navigate('/profile')
-        return
-      }
-      const base64Data = base64.split(',')[1]
-      const mimeMatch = base64.match(/data:(.*?);/)
-      const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
-      
-      const response = await fetch(
-        'https://axthmghawwishcjlldfj.supabase.co/functions/v1/smart-service',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ action: 'analyze', imageBase64: base64Data, mimeType }),
-        }
-      )
-      const data = await response.json()
-      if (data.ok) setResult(data.data)
-      else alert('فشل التحليل: ' + (data.error || 'خطأ غير معروف'))
-    } catch (err) {
-      console.error(err)
-      alert('حدث خطأ أثناء التحليل')
-    } finally {
-      setAnalyzing(false)
-    }
-  }
+      const base64Data = base64.split(',')[1];
+      const mimeMatch = base64.match(/data:(.*?);/);
+      const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
-  // ✅ 3. تعديل دالة الحفظ لتستخدم الـ Store
+      // استخدام askAi بدلاً من fetch اليدوي
+      const res = await askAi<FoodAnalysis>('analyze', {
+        imageBase64: base64Data,
+        mimeType: mimeType,
+      });
+
+      if (res.ok && res.data) {
+        setResult(res.data);
+      } else {
+        alert('فشل التحليل: ' + (res.error || 'خطأ غير معروف'));
+      }
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ أثناء التحليل');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  // ✅ 2. دالة الحفظ الجديدة (باستخدام الـ Store)
   const saveMeal = async () => {
-    if (!result) return
-    setSaving(true)
+    if (!result) return;
+    setSaving(true);
     try {
+      const hour = new Date().getHours();
+      let mealType = 'snack';
+      if (hour >= 5 && hour < 11) mealType = 'breakfast';
+      else if (hour >= 11 && hour < 15) mealType = 'lunch';
+      else if (hour >= 15 && hour < 21) mealType = 'dinner';
+
+      await addMeal({
+        name: result.name,
+        calories: result.calories,
+        protein: result.protein,
+        carbs: result.carbs,
+        fat: result.fat,
+        meal_type: mealType,
+      });
+
+      alert('✅ تم حفظ الوجبة بنجاح');
+      navigate('/');
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ أثناء الحفظ');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ... (باقي الـ JSX كما هو)
+}
       // تحديد نوع الوجبة تلقائياً بناءً على الوقت
       const hour = new Date().getHours()
       let mealType = 'snack'
