@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
-import { supabase } from '../lib/supabase';
 
 const C = {
   bg: 'var(--color-bg-base, #FAF7F0)',
@@ -28,10 +27,9 @@ type ModalType = 'personal' | 'measurements' | 'goal' | null;
 
 export default function ProfileScreen() {
   const user = useStore((s) => s.user);
-  const userId = useStore((s) => s.userId);
   const targets = useStore((s) => s.targets);
-  const completeOnboarding = useStore((s) => s.completeOnboarding);
-  const setStoreTargets = useStore((s) => s.setTargets);
+  const updateProfile = useStore((s) => s.updateProfile);
+  const signOut = useStore((s) => s.signOut);
   const navigate = useNavigate();
 
   const [modal, setModal] = useState<ModalType>(null);
@@ -45,15 +43,12 @@ export default function ProfileScreen() {
   const [formGoal, setFormGoal] = useState('');
   const [formTargetWeight, setFormTargetWeight] = useState('');
 
-  const userName = user?.name || 'ضيف';
-  const userAge = user?.age ? `${user.age} سنة` : '—';
-  const userMeasurements =
-    user?.height_cm && user?.weight_kg
-      ? `${user.height_cm} سم • ${user.weight_kg} كجم`
-      : '—';
+  const userName = user?.name || 'صديقي';
+  const userAge = user?.age ? `${user.age} سنة` : '-';
+  const userMeasurements = user?.height_cm && user?.weight_kg
+    ? `${user.height_cm} سم • ${user.weight_kg} كجم` : '-';
   const userGoal = GOAL_LABELS[user?.goal || ''] || 'غير محدد';
 
-  // ========== Open modal handlers ==========
   const openPersonal = () => {
     setFormName(user?.name || '');
     setFormAge(String(user?.age || ''));
@@ -61,10 +56,10 @@ export default function ProfileScreen() {
   };
 
   const openMeasurements = () => {
-  setFormHeight(String(user?.height_cm || ''));
-  setFormWeight(String(user?.weight_kg || user?.weight || ''));
-  setModal('measurements');
-};
+    setFormHeight(String(user?.height_cm || ''));
+    setFormWeight(String(user?.weight_kg || ''));
+    setModal('measurements');
+  };
 
   const openGoal = () => {
     setFormGoal(user?.goal || 'maintain');
@@ -72,55 +67,24 @@ export default function ProfileScreen() {
     setModal('goal');
   };
 
-  // ========== Save handlers ==========
-  const saveToSupabase = async (updates: Record<string, any>) => {
-  if (!userId) {
-    alert('يجب تسجيل الدخول أولاً');
-    return false;
-  }
-  console.log('Saving to Supabase:', updates);
-  
-  const { error } = await supabase
-    .from('profiles')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', userId);
-
-    if (error) {
-      alert('فشل الحفظ: ' + error.message);
-      return false;
-    }
-    return true;
-  }
-
+  // ✅ استخدام updateProfile من الـ Store
   const handleSavePersonal = async () => {
-  const name = formName.trim();
-  const age = parseInt(formAge, 10);
+    const name = formName.trim();
+    const age = parseInt(formAge, 10);
 
-  console.log('Parsed personal:', { name, age, formName, formAge });
+    if (name.length < 2) return alert('الاسم قصير جداً');
+    if (!age || age < 14 || age > 90) return alert('العمر غير صالح');
 
-  if (name.length < 2) return alert('الاسم قصير جداً');
-  if (!age || isNaN(age) || age < 14 || age > 90) {
-    return alert(`العمر غير صالح: "${formAge}"`);
-  }
-
-  setSaving(true);
-  const ok = await saveToSupabase({ name, age });
-  if (ok) {
-    completeOnboarding({
-      name,
-      goal: user?.goal || 'maintain',
-      age,
-      gender: user?.gender,
-      height_cm: user?.height_cm,
-      weight_kg: user?.weight_kg || user?.weight,
-      target_weight_kg: user?.target_weight_kg,
-      activity_level: user?.activity_level,
-      diet_preference: user?.diet_preference,
-    });
-    setModal(null);
-  }
-  setSaving(false);
-};
+    setSaving(true);
+    try {
+      await updateProfile({ name, age });
+      setModal(null);
+    } catch (error) {
+      alert('فشل الحفظ، حاول مرة أخرى');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSaveMeasurements = async () => {
     const height = parseInt(formHeight, 10);
@@ -130,22 +94,14 @@ export default function ProfileScreen() {
     if (!weight || weight < 30 || weight > 250) return alert('الوزن غير صالح');
 
     setSaving(true);
-    const ok = await saveToSupabase({ height_cm: height, weight_kg: weight });
-    if (ok) {
-      completeOnboarding({
-        name: user?.name || 'صديق',
-        goal: user?.goal || 'maintain',
-        age: user?.age,
-        gender: user?.gender,
-        height_cm: height,
-        weight_kg: weight,
-        target_weight_kg: user?.target_weight_kg,
-        activity_level: user?.activity_level,
-        diet_preference: user?.diet_preference,
-      });
+    try {
+      await updateProfile({ height_cm: height, weight_kg: weight });
       setModal(null);
+    } catch (error) {
+      alert('فشل الحفظ، حاول مرة أخرى');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const handleSaveGoal = async () => {
@@ -156,28 +112,19 @@ export default function ProfileScreen() {
     }
 
     setSaving(true);
-    const ok = await saveToSupabase({
-      goal: formGoal,
-      target_weight_kg: formGoal === 'maintain' ? null : target,
-    });
-    if (ok) {
-      completeOnboarding({
-        name: user?.name || 'صديق',
+    try {
+      await updateProfile({
         goal: formGoal,
-        age: user?.age,
-        gender: user?.gender,
-        height_cm: user?.height_cm,
-        weight_kg: user?.weight,
         target_weight_kg: formGoal === 'maintain' ? undefined : target,
-        activity_level: user?.activity_level,
-        diet_preference: user?.diet_preference,
       });
       setModal(null);
+    } catch (error) {
+      alert('فشل الحفظ، حاول مرة أخرى');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
-  // ========== Sections ==========
   const sections = [
     {
       title: 'الحساب',
@@ -206,7 +153,7 @@ export default function ProfileScreen() {
   ];
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg, paddingBottom: 100, direction: 'rtl', fontFamily: 'var(--font-arabic)' }}>
+    <div style={{ minHeight: '100vh', background: C.bg, paddingBottom: 100, direction: 'rtl', fontFamily: 'var(--font-arabic, system-ui)' }}>
       <header style={{ padding: '28px 20px 16px' }}>
         <h1 style={{ fontSize: 30, fontWeight: 800, color: C.text, margin: 0 }}>حسابي</h1>
       </header>
@@ -220,13 +167,10 @@ export default function ProfileScreen() {
           <div style={{ flex: 1 }}>
             <h2 style={{ color: '#fff', fontWeight: 700, fontSize: 18, margin: 0 }}>{userName}</h2>
             <p style={{ color: '#C9E6D8', fontSize: 12, margin: '4px 0 0' }}>
-              {targets?.calories ? `هدفك اليومي: ${targets.calories} سعرة` : 'ابدأ رحلتك الصحية اليوم'}
+              {targets?.calories ? `هدفك اليومي: ${targets.calories} سعرة` : 'أكمل بياناتك لحساب هدفك'}
             </p>
           </div>
-          <button
-            onClick={openPersonal}
-            style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', padding: 8, cursor: 'pointer' }}
-          >
+          <button onClick={openPersonal} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', padding: 8, cursor: 'pointer' }}>
             <Pencil size={18} color="#fff" />
           </button>
         </div>
@@ -234,13 +178,10 @@ export default function ProfileScreen() {
 
       {/* Premium Banner */}
       <section style={{ padding: '0 20px', marginBottom: 20 }}>
-        <button
-          onClick={() => navigate('/premium')}
-          style={{ width: '100%', background: `linear-gradient(to left, ${C.amber}, #D18A1F)`, borderRadius: 24, padding: 16, border: 'none', cursor: 'pointer', textAlign: 'right' }}
-        >
+        <button onClick={() => navigate('/premium')} style={{ width: '100%', background: `linear-gradient(to left, ${C.amber}, #D18A1F)`, borderRadius: 24, padding: 16, border: 'none', cursor: 'pointer', textAlign: 'right' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <h3 style={{ color: '#fff', fontWeight: 700, fontSize: 16, margin: 0 }}>ارتقِ إلى بريميوم ✨</h3>
+              <h3 style={{ color: '#fff', fontWeight: 700, fontSize: 16, margin: 0 }}>👑 ارتقِ إلى بريميوم</h3>
               <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, margin: '4px 0 0' }}>تحليل غير محدود + خطط ذكية</p>
             </div>
             <Crown size={28} color="#fff" />
@@ -251,23 +192,14 @@ export default function ProfileScreen() {
       {/* Sections */}
       {sections.map((section, idx) => (
         <section key={idx} style={{ padding: '0 20px', marginBottom: 20 }}>
-          <h3 style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, margin: '0 0 8px 4px', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          <h3 style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: 1 }}>
             {section.title}
           </h3>
           <div style={{ background: C.card, borderRadius: 20, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
             {section.items.map((item, i) => {
               const Icon = item.icon;
               return (
-                <button
-                  key={i}
-                  onClick={item.onPress}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '14px 16px', textAlign: 'right', background: 'transparent',
-                    border: 'none', borderBottom: i !== section.items.length - 1 ? `1px solid #F0EDE4` : 'none',
-                    cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
+                <button key={i} onClick={item.onPress} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', textAlign: 'right', background: 'transparent', border: 'none', borderBottom: i !== section.items.length - 1 ? `1px solid #F0EDE4` : 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
                   <Icon size={20} color={C.primary} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 14, fontWeight: 500, color: C.text }}>{item.label}</div>
@@ -283,23 +215,15 @@ export default function ProfileScreen() {
 
       {/* Logout */}
       <section style={{ padding: '0 20px' }}>
-        <button
-          onClick={() => {
-            if (confirm('هل تريد تسجيل الخروج؟')) {
-              useStore.getState().signOut();
-            }
-          }}
-          style={{ width: '100%', background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: '14px 0', color: C.red, fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}
-        >
+        <button onClick={() => { if (confirm('هل تريد تسجيل الخروج؟')) signOut(); }} style={{ width: '100%', background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: '14px 0', color: C.red, fontWeight: 600, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' }}>
           تسجيل الخروج
         </button>
       </section>
 
-      {/* ============ Modals ============ */}
-
+      {/* Modals */}
       {modal === 'personal' && (
         <Modal title="تعديل البيانات الشخصية" onClose={() => setModal(null)} saving={saving} onSave={handleSavePersonal}>
-          <FormInput label="الاسم" value={formName} onChange={setFormName} placeholder="مثلاً: أبو محمد" />
+          <FormInput label="الاسم" value={formName} onChange={setFormName} placeholder="مثال: محمد" />
           <FormInput label="العمر" value={formAge} onChange={setFormAge} type="number" placeholder="25" />
         </Modal>
       )}
@@ -314,37 +238,21 @@ export default function ProfileScreen() {
       {modal === 'goal' && (
         <Modal title="تعديل الهدف" onClose={() => setModal(null)} saving={saving} onSave={handleSaveGoal}>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ color: C.textMuted, fontSize: 12, display: 'block', marginBottom: 8 }}>الهدف</label>
+            <label style={{ color: C.textMuted, fontSize: 12, display: 'block', marginBottom: 8 }}>هدفك</label>
             <div style={{ display: 'flex', gap: 8 }}>
               {[
                 { k: 'lose', t: 'إنقاص' },
                 { k: 'maintain', t: 'حفاظ' },
                 { k: 'gain', t: 'زيادة' },
               ].map((g) => (
-                <button
-                  key={g.k}
-                  onClick={() => setFormGoal(g.k)}
-                  style={{
-                    flex: 1, padding: 12, borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit',
-                    background: formGoal === g.k ? C.primary : C.card,
-                    color: formGoal === g.k ? '#fff' : C.text,
-                    border: `1.5px solid ${formGoal === g.k ? C.primary : C.border}`,
-                    fontSize: 13, fontWeight: 600,
-                  }}
-                >
+                <button key={g.k} onClick={() => setFormGoal(g.k)} style={{ flex: 1, padding: 12, borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit', background: formGoal === g.k ? C.primary : C.card, color: formGoal === g.k ? '#fff' : C.text, border: `1.5px solid ${formGoal === g.k ? C.primary : C.border}`, fontSize: 13, fontWeight: 600 }}>
                   {g.t}
                 </button>
               ))}
             </div>
           </div>
           {formGoal !== 'maintain' && (
-            <FormInput
-              label="الوزن المستهدف (كجم)"
-              value={formTargetWeight}
-              onChange={setFormTargetWeight}
-              type="number"
-              placeholder="70"
-            />
+            <FormInput label="الوزن المستهدف (كجم)" value={formTargetWeight} onChange={setFormTargetWeight} type="number" placeholder="70" />
           )}
         </Modal>
       )}
@@ -353,52 +261,18 @@ export default function ProfileScreen() {
 }
 
 /* ============ Modal Component ============ */
-
-function Modal({ title, children, onClose, onSave, saving }: {
-  title: string;
-  children: React.ReactNode;
-  onClose: () => void;
-  onSave: () => void;
-  saving: boolean;
-}) {
+function Modal({ title, children, onClose, onSave, saving }: { title: string; children: React.ReactNode; onClose: () => void; onSave: () => void; saving: boolean; }) {
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        zIndex: 100, direction: 'rtl',
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: C.card, width: '100%', maxWidth: 480,
-          borderTopLeftRadius: 24, borderTopRightRadius: 24,
-          padding: 24, paddingBottom: 'calc(24px + env(safe-area-inset-bottom))',
-          fontFamily: 'var(--font-arabic)',
-        }}
-      >
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 100, direction: 'rtl' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, width: '100%', maxWidth: 480, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 'calc(24px + env(safe-area-inset-bottom))', fontFamily: 'var(--font-arabic)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: C.text }}>{title}</h2>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 8 }}>
             <X size={20} color={C.textMuted} />
           </button>
         </div>
-
         {children}
-
-        <button
-          onClick={onSave}
-          disabled={saving}
-          style={{
-            width: '100%', padding: 16, marginTop: 20,
-            background: saving ? C.textMuted : C.primary,
-            color: '#fff', border: 'none', borderRadius: 14,
-            fontSize: 15, fontWeight: 700, cursor: saving ? 'wait' : 'pointer',
-            fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          }}
-        >
+        <button onClick={onSave} disabled={saving} style={{ width: '100%', padding: 16, marginTop: 20, background: saving ? C.textMuted : C.primary, color: '#fff', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 700, cursor: saving ? 'wait' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           {saving ? 'جاري الحفظ...' : <><Check size={18} /> حفظ</>}
         </button>
       </div>
@@ -406,30 +280,11 @@ function Modal({ title, children, onClose, onSave, saving }: {
   );
 }
 
-/* ============ Form Input Component ============ */
-
-function FormInput({ label, value, onChange, type = 'text', placeholder }: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  type?: string;
-  placeholder?: string;
-}) {
+function FormInput({ label, value, onChange, type = 'text', placeholder }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string; }) {
   return (
     <div style={{ marginBottom: 16 }}>
       <label style={{ color: C.textMuted, fontSize: 12, display: 'block', marginBottom: 8 }}>{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        style={{
-          width: '100%', padding: 14, background: C.bg,
-          border: `1.5px solid ${C.border}`, borderRadius: 12,
-          fontSize: 14, color: C.text, fontFamily: 'inherit',
-          boxSizing: 'border-box', outline: 'none',
-        }}
-      />
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={{ width: '100%', padding: 14, background: C.bg, border: `1.5px solid ${C.border}`, borderRadius: 12, fontSize: 14, color: C.text, fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }} />
     </div>
   );
 }
