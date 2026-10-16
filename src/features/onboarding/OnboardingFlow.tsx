@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import {
-  Sparkles, Camera, Bot, TrendingDown, Scale, TrendingUp,
-  ChevronRight, ChevronLeft, Flame, Droplet, Loader2,
-  Mail, Lock, Eye, EyeOff, Check, User, Ruler, Activity as ActivityIcon,
-  Utensils, Target
+  Sparkles, TrendingDown, Scale, TrendingUp,
+  ChevronRight, Flame, Droplet, Loader2,
+  Eye, EyeOff, User, Activity as ActivityIcon,
+  Utensils
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useStore } from '../../store/useStore'
@@ -110,7 +110,6 @@ function NumberInput({ label, value, onChange, unit, min, max }: {
             border: `1.5px solid ${value ? 'var(--color-primary-500)' : 'var(--color-border-subtle)'}`,
             borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)',
             fontSize: 'var(--fs-body)', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none',
-            appearance: 'textfield',
           }}
         />
         {unit && <span style={{ position: 'absolute', left: 18, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', fontSize: 'var(--fs-body-sm)' }}>{unit}</span>}
@@ -414,7 +413,7 @@ function RevealStep({ data, targets, onNext, onBack }: { data: any; targets: any
 }
 
 /* ============================================================
-   ACCOUNT STEP — MODIFIED ✅
+   ACCOUNT STEP
    ============================================================ */
 function AccountStep({ onComplete, onSkip, onBack }: {
   onComplete: (email: string, password: string) => Promise<void>;
@@ -436,7 +435,7 @@ function AccountStep({ onComplete, onSkip, onBack }: {
     setLoading(true)
     setError('')
     try {
-      await onComplete(email, password) // ✅ تمرير كلمة المرور
+      await onComplete(email, password)
     } catch (e: any) {
       const msg = (e?.message || '').toLowerCase()
       if (msg.includes('already registered') || msg.includes('user already')) {
@@ -490,165 +489,4 @@ function AccountStep({ onComplete, onSkip, onBack }: {
             gap: 8,
           }}>
             <span style={{ fontSize: 16 }}>⚠️</span>
-            <p style={{ color: 'var(--color-error)', fontSize: 'var(--fs-body-sm)', margin: 0, flex: 1 }}>{error}</p>
-          </div>
-        )}
-      </div>
-
-      <div style={{ padding: '24px 24px calc(32px + env(safe-area-inset-bottom))' }}>
-        <PrimaryButton onClick={handleSubmit} disabled={!valid} loading={loading}>إنشاء الحساب</PrimaryButton>
-        <GhostButton onClick={onSkip}>متابعة كضيف</GhostButton>
-      </div>
-    </div>
-  )
-}
-
-/* ============================================================
-   MAIN FLOW — MODIFIED ✅
-   ============================================================ */
-
-export default function OnboardingFlow() {
-  const [step, setStep] = useState(0)
-  const [calculating, setCalculating] = useState(false)
-  const { data, targets, update, setTargets, reset } = useOnboarding()
-  const {
-  completeOnboarding,
-  skipLogin,
-  login,
-  setUserId,
-  setTargets: setStoreTargets,
-} = useStore()
-
-  const goNext = () => setStep((s) => s + 1)
-  const goBack = () => setStep((s) => Math.max(0, s - 1))
-
-  const handleGoalNext = () => goNext()
-
-  const handleDietNext = () => {
-    setCalculating(true)
-    setTimeout(() => {
-      const t = calculateTargets(data as OnboardingData)
-      setTargets(t)
-      setStoreTargets(t)
-      setCalculating(false)
-      goNext()
-    }, 800)
-  }
-
-  // ✅ FIXED: use real password + handle already-registered
-  const handleAccountCreate = async (email: string, password: string) => {
-  let userId: string | null = null
-
-    // 1. جرّب إنشاء الحساب أولاً
-    const { data: signupData, error: signupError } = await supabase.auth.signUp({
-      email,
-      password, // ✅ كلمة المرور الحقيقية
-    })
-
-    // 2. إذا كان البريد موجوداً → سجّل الدخول بدلاً منه
-    if (
-      signupError?.message?.includes('already registered') ||
-      signupError?.message?.includes('User already')
-    ) {
-      const { data: loginData, error: loginError } =
-        await supabase.auth.signInWithPassword({ email, password })
-
-      if (loginError) {
-        throw new Error(
-          'هذا البريد مسجل بكلمة مرور مختلفة. جرّب "نسيت كلمة المرور"'
-        )
-      }
-      userId = loginData.user?.id || null
-    }
-    // 3. خطأ آخر غير متوقع
-    else if (signupError) {
-      throw signupError
-    }
-    // 4. نجح التسجيل
-    else {
-      userId = signupData.user?.id || null
-
-      // إذا لم يكن هناك session مباشرة → نحاول تسجيل الدخول فوراً
-      if (signupData.user && !signupData.session) {
-        const { data: loginData, error: loginError } =
-          await supabase.auth.signInWithPassword({ email, password })
-
-        if (loginError?.message?.includes('not confirmed')) {
-          throw new Error(
-            'تم إنشاء حسابك ✅ — يرجى تأكيد بريدك الإلكتروني ثم تسجيل الدخول'
-          )
-        }
-        if (!loginError && loginData.user) {
-          userId = loginData.user.id
-        }
-      }
-    }
-
-    // 5. حفظ الملف الشخصي في Supabase
-    if (userId) {
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .upsert({
-      id: userId,
-      name: data.name || '',
-      country: 'MA',
-      gender: data.gender || null,
-      birth_date: null,
-      height_cm: data.height_cm || null,
-      weight_kg: data.weight_kg || null,
-      activity_level: data.activity_level || null,
-      diet_preference: data.diet_preference || null,
-      goal: data.goal || 'maintain',
-      target_weight_kg: data.target_weight_kg || null,
-      daily_calorie_target: targets?.calories || null,
-      onboarding_completed: true,
-    })
-
-  if (profileError) {
-  console.warn('Profile save warning:', profileError)
-  }
-
-  setUserId(userId)              // ✅ إضافة 1
-}
-
-if (targets) setStoreTargets(targets)   // ✅ إضافة 2
-
-completeOnboarding({
-  name: data.name || 'صديق',
-  goal: data.goal || 'maintain',
-  age: data.age,                        // ✅ إضافة 3 (6 أسطر)
-  gender: data.gender,
-  height_cm: data.height_cm,
-  weight_kg: data.weight_kg,
-  target_weight_kg: data.target_weight_kg,
-  activity_level: data.activity_level,
-  diet_preference: data.diet_preference,
-})
-login(email)
-  }
-  const handleSkip = () => {
-    completeOnboarding({ name: 'ضيف', goal: 'maintain' })
-    skipLogin()
-  }
-
-  if (calculating) {
-    return (
-      <div style={{ minHeight: '100dvh', background: 'var(--color-bg-base)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, fontFamily: 'var(--font-arabic)' }}>
-        <Loader2 size={40} color="var(--color-primary-500)" style={{ animation: 'spin 1s linear infinite' }} />
-        <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--fs-body)' }}>نحسب خطتك...</p>
-      </div>
-    )
-  }
-
-  switch (step) {
-    case 0: return <WelcomeStep onNext={goNext} onSkip={handleSkip} />
-    case 1: return <GoalStep value={data.goal || ''} onSelect={(v) => update({ goal: v as any })} onNext={handleGoalNext} onBack={goBack} />
-    case 2: return <ProfileStep data={data} update={update} onNext={goNext} onBack={goBack} />
-    case 3: return <BodyStep data={data} update={update} onNext={goNext} onBack={goBack} />
-    case 4: return <ActivityStep value={data.activity_level || ''} onSelect={(v) => update({ activity_level: v as any })} onNext={goNext} onBack={goBack} />
-    case 5: return <DietStep value={data.diet_preference} onSelect={(v) => update({ diet_preference: v as any })} onNext={handleDietNext} onSkip={handleDietNext} onBack={goBack} />
-    case 6: return <RevealStep data={data} targets={targets} onNext={goNext} onBack={goBack} />
-    case 7: return <AccountStep onComplete={handleAccountCreate} onSkip={handleSkip} onBack={goBack} />
-    default: return null
-  }
-}
+            <p style={{ color: 'var(--color-error)', fontSize: 'var(--fs-body-sm)', margin: 0, flex: 1 }}>{error
