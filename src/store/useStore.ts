@@ -1,84 +1,84 @@
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { supabase } from '../lib/supabase'; // تأكد من مسار عميل Supabase
 
 /* ============ Types ============ */
-
 export interface MacroTargets {
-  calories: number
-  protein_g: number
-  carbs_g: number
-  fat_g: number
-  water_ml: number
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  water_ml: number;
 }
 
 export interface UserProfile {
-  name: string
-  weight: number
-  weight_kg?: number        // ← أضف هذا
-  targetCalories: number
-  country: string
-  goal: string
-  age?: number
-  gender?: 'male' | 'female'
-  height_cm?: number
-  target_weight_kg?: number
-  activity_level?: string
-  diet_preference?: string
+  name: string;
+  weight_kg: number;
+  targetCalories: number;
+  country: string;
+  goal: string;
+  age?: number;
+  gender?: 'male' | 'female';
+  height_cm?: number;
+  target_weight_kg?: number;
+  activity_level?: string;
+  diet_preference?: string;
 }
 
 export interface OnboardingData {
-  name: string
-  goal: string
-  age?: number
-  gender?: 'male' | 'female'
-  height_cm?: number
-  weight_kg?: number
-  target_weight_kg?: number
-  activity_level?: string
-  diet_preference?: string
+  name: string;
+  goal: string;
+  age?: number;
+  gender?: 'male' | 'female';
+  height_cm?: number;
+  weight_kg?: number;
+  target_weight_kg?: number;
+  activity_level?: string;
+  diet_preference?: string;
 }
 
 export interface Meal {
-  name: string
-  calories: number
-  protein?: number
-  carbs?: number
-  fat?: number
-  meal_type?: string
-  image_url?: string
-  created_at?: string
+  id?: string; // ✅ إضافة معرف فريد للوجبة للتزامن مع Supabase
+  name: string;
+  calories: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  meal_type?: string;
+  image_url?: string;
+  created_at?: string;
 }
 
 interface AppState {
   // === Core state ===
-  isOnboarded: boolean
-  isLoggedIn: boolean
-  userId: string | null
-  user: UserProfile | null
-  targets: MacroTargets | null
+  isOnboarded: boolean;
+  isLoggedIn: boolean;
+  userId: string | null;
+  user: UserProfile | null;
+  targets: MacroTargets | null;
 
   // === Runtime state ===
-  meals: Meal[]
-  waterCups: number
-  plan: 'free' | 'gold'
+  meals: Meal[];
+  waterCups: number;
+  plan: 'free' | 'gold';
 
   // === Actions ===
-  completeOnboarding: (data: OnboardingData) => void
-  setUserId: (id: string | null) => void
-  setTargets: (t: MacroTargets | null) => void
-  login: (email: string) => void
-  skipLogin: () => void
-  addMeal: (meal: Meal) => void
-  removeMeal: (index: number) => void
-  clearMeals: () => void
-  setWaterCups: (cups: number) => void
-  upgradeToGold: () => void
-  signOut: () => void
-  resetAll: () => void
+  completeOnboarding: (data: OnboardingData) => void;
+  setUserId: (id: string | null) => void;
+  setTargets: (t: MacroTargets | null) => void;
+  login: (email: string) => void;
+  skipLogin: () => void;
+  fetchDailyData: () => Promise<void>; // ✅ دالة جديدة لجلب البيانات
+  addMeal: (meal: Meal) => Promise<void>; // ✅ أصبحت غير متزامنة
+  removeMeal: (id: string) => Promise<void>; // ✅ تعتمد على الـ ID
+  clearMeals: () => void;
+  setWaterCups: (cups: number) => Promise<void>; // ✅ أصبحت غير متزامنة
+  upgradeToGold: () => void;
+  signOut: () => Promise<void>;
+  resetAll: () => void;
 }
 
 /* ============ Initial State ============ */
-
 const INITIAL_STATE = {
   isOnboarded: false,
   isLoggedIn: false,
@@ -88,24 +88,21 @@ const INITIAL_STATE = {
   meals: [] as Meal[],
   waterCups: 0,
   plan: 'free' as const,
-}
+};
 
 /* ============ Store ============ */
-
 export const useStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...INITIAL_STATE,
 
-      // --- Onboarding completed (backward compatible) ---
       completeOnboarding: (data) =>
         set({
           isOnboarded: true,
           user: {
             name: data.name,
-            weight: data.weight_kg || 69,
-            weight_kg: data.weight_kg,
-            targetCalories: 2300, // سيُستبدل بـ targets.calories
+            weight_kg: data.weight_kg || 70,
+            targetCalories: 2300, // يمكن تحديثها لاحقاً بناءً على الحسابات
             country: 'MA',
             goal: data.goal,
             age: data.age,
@@ -117,33 +114,110 @@ export const useStore = create<AppState>()(
           },
         }),
 
-      // --- User ID (Supabase auth) ---
       setUserId: (id) => set({ userId: id }),
-
-      // --- Targets from calculateTargets() ---
       setTargets: (t) => set({ targets: t }),
-
-      // --- Login / Skip ---
       login: (_email: string) => set({ isLoggedIn: true, isOnboarded: true }),
-
       skipLogin: () => set({ isOnboarded: true, isLoggedIn: false }),
 
-      // --- Meals ---
-      addMeal: (meal) => set((s) => ({ meals: [...s.meals, meal] })),
+      // ✅ دالة لجلب بيانات اليوم من Supabase عند فتح التطبيق
+      fetchDailyData: async () => {
+        const { userId } = get();
+        if (!userId) return;
 
-      removeMeal: (index) =>
-        set((s) => ({ meals: s.meals.filter((_, i) => i !== index) })),
+        const today = new Date().toISOString().split('T')[0];
+
+        try {
+          // 1. جلب وجبات اليوم
+          const { data: mealsData } = await supabase
+            .from('food_logs')
+            .select('*')
+            .eq('user_id', userId)
+            .gte('created_at', today);
+
+          // 2. جلب سجل الماء لليوم
+          const { data: waterData } = await supabase
+            .from('water_logs')
+            .select('amount_ml')
+            .eq('user_id', userId)
+            .gte('logged_at', today);
+
+          const totalWater = waterData?.reduce((sum, log) => sum + log.amount_ml, 0) || 0;
+
+          set({
+            meals: mealsData || [],
+            waterCups: totalWater / 250, // افترضنا أن الكوب 250 مل
+          });
+        } catch (error) {
+          console.error('Error fetching daily data:', error);
+        }
+      },
+
+      // ✅ إضافة وجبة إلى Supabase ثم تحديث الواجهة
+      addMeal: async (meal) => {
+        const { userId, meals } = get();
+        if (!userId) return;
+
+        try {
+          const { data, error } = await supabase
+            .from('food_logs')
+            .insert({
+              user_id: userId,
+              name: meal.name,
+              calories: meal.calories,
+              protein: meal.protein || 0,
+              carbs: meal.carbs || 0,
+              fat: meal.fat || 0,
+              meal_type: meal.meal_type || 'snack',
+            })
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          // تحديث الحالة المحلية بالبيانات القادمة من Supabase (التي تحتوي على ID)
+          set({ meals: [...meals, data] });
+        } catch (error) {
+          console.error('Error adding meal:', error);
+        }
+      },
+
+      // ✅ حذف وجبة من Supabase باستخدام الـ ID
+      removeMeal: async (id) => {
+        const { meals } = get();
+        try {
+          await supabase.from('food_logs').delete().eq('id', id);
+          set({ meals: meals.filter((m) => m.id !== id) });
+        } catch (error) {
+          console.error('Error removing meal:', error);
+        }
+      },
 
       clearMeals: () => set({ meals: [] }),
 
-      // --- Water ---
-      setWaterCups: (cups) => set({ waterCups: cups }),
+      // ✅ تسجيل الماء في Supabase
+      setWaterCups: async (cups) => {
+        const { userId, waterCups } = get();
+        if (!userId) return;
 
-      // --- Premium ---
+        const diff = cups - waterCups;
+        const amount_ml = diff * 250;
+
+        try {
+          await supabase.from('water_logs').insert({
+            user_id: userId,
+            amount_ml,
+            logged_at: new Date().toISOString(),
+          });
+          set({ waterCups: cups });
+        } catch (error) {
+          console.error('Error logging water:', error);
+        }
+      },
+
       upgradeToGold: () => set({ plan: 'gold' }),
 
-      // --- Sign out ---
-      signOut: () =>
+      signOut: async () => {
+        await supabase.auth.signOut();
         set({
           isLoggedIn: false,
           userId: null,
@@ -151,14 +225,14 @@ export const useStore = create<AppState>()(
           targets: null,
           meals: [],
           waterCups: 0,
-        }),
+        });
+      },
 
-      // --- Reset everything ---
       resetAll: () => set(INITIAL_STATE),
     }),
     {
-      name: 'rashaqa-store',
-      version: 2,
+      name: 'rasha-qa-store',
+      version: 2, // ⚠️ قمنا بزيادة الإصدار لأننا غيرنا هيكل البيانات
       partialize: (state) => ({
         isOnboarded: state.isOnboarded,
         isLoggedIn: state.isLoggedIn,
@@ -171,4 +245,4 @@ export const useStore = create<AppState>()(
       }),
     }
   )
-)
+);
