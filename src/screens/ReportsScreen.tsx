@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingDown, TrendingUp, Flame, Droplets, Dumbbell, Loader2 } from 'lucide-react';
-import { useStore } from '../store/useStore'; // ✅ استيراد الـ Store
-import { supabase } from '../lib/supabase'; // ✅ استيراد عميل Supabase
+import { useStore } from '../store/useStore';
+import { supabase } from '../lib/supabase';
 
 const C = {
   bg: 'var(--color-bg-base, #FAF7F0)',
@@ -15,17 +15,13 @@ const C = {
   blue: '#4A90E2',
 };
 
-// ✅ دالة مساعدة لتوليد أيام الأسبوع بالعربية
 const getLast7Days = () => {
   const days = [];
   const dayNames = ['أحد', 'إثن', 'ثلا', 'أرب', 'خمي', 'جمع', 'سبت'];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    days.push({
-      date: d.toISOString().split('T')[0],
-      label: dayNames[d.getDay()],
-    });
+    days.push({ date: d.toISOString().split('T')[0], label: dayNames[d.getDay()] });
   }
   return days;
 };
@@ -40,6 +36,13 @@ export default function ReportsScreen() {
   const [macros, setMacros] = useState({ protein: 35, carbs: 45, fat: 20 });
   const [totalTodayCalories, setTotalTodayCalories] = useState(0);
   const [weightData, setWeightData] = useState({ current: 0, target: 0, start: 0 });
+  
+  // ✅ 1. حالات جديدة للإنجازات
+  const [achievements, setAchievements] = useState({
+    streak: 0,
+    waterLiters: 0,
+    weeklyWorkouts: 0,
+  });
 
   useEffect(() => {
     const fetchReportData = async () => {
@@ -57,7 +60,6 @@ export default function ReportsScreen() {
           .eq('user_id', userId)
           .gte('created_at', days[0].date);
 
-        // 2. تجميع السعرات لكل يوم
         const calMap: Record<string, number> = {};
         days.forEach(d => calMap[d.date] = 0);
         
@@ -65,9 +67,7 @@ export default function ReportsScreen() {
 
         foodLogs?.forEach(log => {
           const logDate = log.created_at.split('T')[0];
-          if (calMap[logDate] !== undefined) {
-            calMap[logDate] += log.calories;
-          }
+          if (calMap[logDate] !== undefined) calMap[logDate] += log.calories;
           if (logDate === today) {
             todayProtein += log.protein || 0;
             todayCarbs += log.carbs || 0;
@@ -79,7 +79,6 @@ export default function ReportsScreen() {
         setWeeklyCalories(days.map(d => calMap[d.date]));
         setTotalTodayCalories(todayCals);
 
-        // حساب نسب الماكروز لليوم الحالي
         const totalMacros = todayProtein + todayCarbs + todayFat;
         if (totalMacros > 0) {
           setMacros({
@@ -89,7 +88,7 @@ export default function ReportsScreen() {
           });
         }
 
-        // 3. جلب بيانات الوزن
+        // 2. جلب بيانات الوزن
         const { data: weightLogs } = await supabase
           .from('weight_logs')
           .select('weight_kg, logged_at')
@@ -103,13 +102,39 @@ export default function ReportsScreen() {
             target: user?.target_weight_kg || weightLogs[weightLogs.length - 1].weight_kg,
           });
         } else {
-          // احتياطياً إذا لم يسجل المستخدم وزنه
           setWeightData({
             start: user?.weight_kg || 70,
             current: user?.weight_kg || 70,
             target: user?.target_weight_kg || 70,
           });
         }
+
+        // ✅ 3. جلب الإنجازات (السلسلة، الماء، التمارين)
+        const { data: streakData } = await supabase
+          .from('streaks')
+          .select('current_streak')
+          .eq('user_id', userId)
+          .single();
+
+        const { data: waterData } = await supabase
+          .from('water_logs')
+          .select('amount_ml')
+          .eq('user_id', userId)
+          .gte('logged_at', today);
+
+        const { data: workoutData } = await supabase
+          .from('daily_progress')
+          .select('id')
+          .eq('user_id', userId)
+          .gte('created_at', days[0].date);
+
+        const totalWater = waterData?.reduce((sum, w) => sum + w.amount_ml, 0) || 0;
+
+        setAchievements({
+          streak: streakData?.current_streak || 1,
+          waterLiters: totalWater / 1000,
+          weeklyWorkouts: workoutData?.length || 0,
+        });
 
       } catch (error) {
         console.error('Error fetching report data:', error);
@@ -129,11 +154,8 @@ export default function ReportsScreen() {
     );
   }
 
-  // حسابات الرسم البياني
   const maxCalories = Math.max(...weeklyCalories, targets?.calories || 2000);
   const weeklyPercentages = weeklyCalories.map(cal => Math.round((cal / maxCalories) * 100));
-
-  // حسابات الوزن
   const totalWeightChange = weightData.start - weightData.current;
   const weightProgressPct = weightData.start === weightData.target ? 100 : 
     Math.min(100, Math.max(0, Math.round(((weightData.start - weightData.current) / (weightData.start - weightData.target)) * 100)));
@@ -175,18 +197,9 @@ export default function ReportsScreen() {
             <div style={{ position: 'relative', width: 160, height: 160 }}>
               <svg viewBox="0 0 36 36" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
                 <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#F0EDE4" strokeWidth="3" />
-                
-                {/* بروتين */}
-                <circle cx="18" cy="18" r="15.9155" fill="none" stroke={C.primary} strokeWidth="3" 
-                  strokeDasharray={`${macros.protein} ${100 - macros.protein}`} strokeDashoffset="0" strokeLinecap="round" />
-                
-                {/* كارب */}
-                <circle cx="18" cy="18" r="15.9155" fill="none" stroke={C.amber} strokeWidth="3" 
-                  strokeDasharray={`${macros.carbs} ${100 - macros.carbs}`} strokeDashoffset={-macros.protein} strokeLinecap="round" />
-                
-                {/* دهون */}
-                <circle cx="18" cy="18" r="15.9155" fill="none" stroke={C.blue} strokeWidth="3" 
-                  strokeDasharray={`${macros.fat} ${100 - macros.fat}`} strokeDashoffset={-(macros.protein + macros.carbs)} strokeLinecap="round" />
+                <circle cx="18" cy="18" r="15.9155" fill="none" stroke={C.primary} strokeWidth="3" strokeDasharray={`${macros.protein} ${100 - macros.protein}`} strokeDashoffset="0" strokeLinecap="round" />
+                <circle cx="18" cy="18" r="15.9155" fill="none" stroke={C.amber} strokeWidth="3" strokeDasharray={`${macros.carbs} ${100 - macros.carbs}`} strokeDashoffset={-macros.protein} strokeLinecap="round" />
+                <circle cx="18" cy="18" r="15.9155" fill="none" stroke={C.blue} strokeWidth="3" strokeDasharray={`${macros.fat} ${100 - macros.fat}`} strokeDashoffset={-(macros.protein + macros.carbs)} strokeLinecap="round" />
               </svg>
               <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: 24, fontWeight: 800, color: C.text }}>{totalTodayCalories.toLocaleString('ar-EG')}</span>
@@ -226,13 +239,13 @@ export default function ReportsScreen() {
         </div>
       </section>
 
-      {/* Achievements */}
+      {/* ✅ 4. Achievements (بيانات حية) */}
       <section style={{ padding: '0 20px' }}>
         <h2 style={{ fontWeight: 700, color: C.text, fontSize: 16, margin: '0 0 12px' }}>الإنجازات</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-          <Achievement icon={<Flame size={24} color={C.primary} />} label="1 يوم" sub="متواصل" />
-          <Achievement icon={<Droplets size={24} color={C.primary} />} label="2 لتر" sub="ماء" />
-          <Achievement icon={<Dumbbell size={24} color={C.primary} />} label="4 تمارين" sub="الأسبوع" />
+          <Achievement icon={<Flame size={24} color={C.primary} />} label={`${achievements.streak} أيام`} sub="متواصل" />
+          <Achievement icon={<Droplets size={24} color={C.primary} />} label={`${achievements.waterLiters.toFixed(1)} لتر`} sub="ماء اليوم" />
+          <Achievement icon={<Dumbbell size={24} color={C.primary} />} label={`${achievements.weeklyWorkouts} تمارين`} sub="هذا الأسبوع" />
         </div>
       </section>
       
