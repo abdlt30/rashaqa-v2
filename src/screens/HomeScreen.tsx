@@ -1,37 +1,39 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Flame, Droplet, Sparkles, TrendingUp, Camera, Mic, Search,
   Plus, Scale, Award, Loader2, Utensils
-} from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import { useStore } from '../store/useStore'
-import { askAi } from '../services/aiService'
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useStore } from '../store/useStore';
+import { askAi } from '../services/aiService';
 
 interface Meal {
-  name: string
-  calories: number
-  protein?: number
-  carbs?: number
-  fat?: number
+  id?: string;
+  name: string;
+  calories: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
 }
 
 /* ============ Helpers ============ */
 function getTimeOfDay(): 'morning' | 'afternoon' | 'evening' | 'night' {
-  const h = new Date().getHours()
-  if (h >= 5 && h < 12) return 'morning'
-  if (h >= 12 && h < 17) return 'afternoon'
-  if (h >= 17 && h < 22) return 'evening'
-  return 'night'
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return 'morning';
+  if (h >= 12 && h < 17) return 'afternoon';
+  if (h >= 17 && h < 22) return 'evening';
+  return 'night';
 }
+
 function timeGreeting(t: ReturnType<typeof getTimeOfDay>): string {
-  return { morning: 'صباح الخير', afternoon: 'مساء الخير', evening: 'مساء الخير', night: 'مرحباً' }[t]
+  return { morning: 'صباح الخير', afternoon: 'مساء الخير', evening: 'مساء الخير', night: 'مرحباً' }[t];
 }
 
 /* ============ Sub-components ============ */
 function MacroBar({ label, consumed, target, color }: {
   label: string; consumed: number; target: number; color: string;
 }) {
-  const pct = Math.min((consumed / Math.max(target, 1)) * 100, 100)
+  const pct = Math.min((consumed / Math.max(target, 1)) * 100, 100);
   return (
     <div style={{
       flex: 1, background: 'var(--color-surface-1)',
@@ -49,17 +51,17 @@ function MacroBar({ label, consumed, target, color }: {
         <div style={{ width: `${pct}%`, height: '100%', background: color, transition: 'width 500ms ease' }} />
       </div>
     </div>
-  )
+  );
 }
 
-function QuickAction({ Icon, label, onClick }: {
-  Icon: any; label: string; onClick: () => void;
+function QuickAction({ icon: Icon, label, onClick }: {
+  icon: any; label: string; onClick: () => void;
 }) {
   return (
     <button onClick={onClick} aria-label={label} style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
       background: 'transparent', border: 'none', cursor: 'pointer',
-      padding: 0, flex: 1, fontFamily: 'inherit',
+      padding: 0, flex: 1, fontFamily: 'inherit'
     }}>
       <div style={{
         width: 46, height: 46, borderRadius: 'var(--radius-md)',
@@ -71,37 +73,55 @@ function QuickAction({ Icon, label, onClick }: {
       </div>
       <span style={{ color: 'var(--color-text-muted)', fontSize: 10 }}>{label}</span>
     </button>
-  )
+  );
 }
 
 /* ============ Main ============ */
 export default function HomeScreen() {
-  const navigate = useNavigate()
-  const user = useStore((s) => s.user)
-  const meals = useStore((s) => s.meals)
-  const waterCups = useStore((s) => s.waterCups)
-  const setWaterCups = useStore((s) => s.setWaterCups)
-  const addMeal = useStore((s) => s.addMeal)
+  const navigate = useNavigate();
+  const user = useStore((s) => s.user);
+  const userId = useStore((s) => s.userId);
+  const meals = useStore((s) => s.meals);
+  const waterCups = useStore((s) => s.waterCups);
+  const targets = useStore((s) => s.targets);
+  
+  // ✅ استخدام الدوال الجديدة من الـ Store
+  const fetchDailyData = useStore((s) => s.fetchDailyData);
+  const addMeal = useStore((s) => s.addMeal);
+  const setWaterCups = useStore((s) => s.setWaterCups);
 
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false);
+  const [initialFetchDone, setInitialFetchDone] = useState(false);
 
-  const targets = useStore((s) => s.targets)
-const targetCalories = targets?.calories || user?.targetCalories || 2300
-const targetProtein = targets?.protein_g || 138
-const targetCarbs = targets?.carbs_g || 248
-const targetFat = targets?.fat_g || 73
+  // ✅ 1. جلب بيانات اليوم عند فتح الشاشة
+  useEffect(() => {
+    const loadData = async () => {
+      if (userId) {
+        await fetchDailyData();
+        setInitialFetchDone(true);
+      }
+    };
+    loadData();
+  }, [userId, fetchDailyData]);
+
+  const targetCalories = targets?.calories || user?.targetCalories || 2300;
+  const targetProtein = targets?.protein_g || 138;
+  const targetCarbs = targets?.carbs_g || 248;
+  const targetFat = targets?.fat_g || 73;
+  const targetWaterCups = targets?.water_ml ? Math.round(targets.water_ml / 250) : 8;
 
   const consumed = useMemo(() => ({
     calories: meals.reduce((s: number, m: Meal) => s + (m.calories || 0), 0),
     protein: meals.reduce((s: number, m: Meal) => s + (m.protein || 0), 0),
     carbs: meals.reduce((s: number, m: Meal) => s + (m.carbs || 0), 0),
     fat: meals.reduce((s: number, m: Meal) => s + (m.fat || 0), 0),
-  }), [meals])
+  }), [meals]);
 
-  const remaining = Math.max(targetCalories - consumed.calories, 0)
+  const remaining = Math.max(targetCalories - consumed.calories, 0);
 
+  // ✅ 2. معالجة إضافة الوجبة من الذكاء الاصطناعي
   const handleSuggest = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       const res = await askAi('suggest', {
         body: {
@@ -109,16 +129,19 @@ const targetFat = targets?.fat_g || 73
           goal: user?.goal || 'maintain',
           remainingCalories: remaining,
         },
-      })
-      if (res?.ok && res.data) addMeal(res.data)
+      });
+      if (res?.ok && res.data) {
+        // إضافة الوجبة إلى Supabase ثم تحديث الواجهة
+        await addMeal(res.data);
+      }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const tod = getTimeOfDay()
-  const streak = 1
-  const currentWeight = user?.weight || 69
+  const tod = getTimeOfDay();
+  const streak = 1; // TODO: سيتم جلبه من جدول streaks لاحقاً
+  const currentWeight = user?.weight_kg || 69;
 
   return (
     <div style={{
@@ -128,7 +151,6 @@ const targetFat = targets?.fat_g || 73
       minHeight: '100dvh',
       color: 'var(--color-text-primary)',
     }}>
-
       {/* HEADER */}
       <header style={{
         display: 'flex', justifyContent: 'space-between',
@@ -140,9 +162,9 @@ const targetFat = targets?.fat_g || 73
           </p>
           <h1 style={{
             color: 'var(--color-text-primary)',
-            fontSize: 22, fontWeight: 700, margin: '4px 0 0',
+            fontSize: 22, fontWeight: 700, margin: '4px 0',
           }}>
-            {user?.name || 'ضيف'}
+            {user?.name || 'صديقي'}
           </h1>
         </div>
         <div style={{
@@ -204,6 +226,7 @@ const targetFat = targets?.fat_g || 73
             : <><Sparkles size={18} /> ماذا آكل الآن؟</>
           }
         </button>
+        {/* ✅ 3. تحديث زر الماء ليتزامن مع Supabase */}
         <button
           onClick={() => setWaterCups(waterCups + 1)}
           style={{
@@ -218,7 +241,7 @@ const targetFat = targets?.fat_g || 73
           }}
         >
           <Droplet size={18} color="var(--color-info)" />
-          ماء ({waterCups})
+          ماء ({waterCups}/{targetWaterCups})
         </button>
       </div>
 
@@ -234,6 +257,7 @@ const targetFat = targets?.fat_g || 73
         <QuickAction Icon={Mic} label="صوت" onClick={() => navigate('/vision')} />
         <QuickAction Icon={Search} label="بحث" onClick={() => navigate('/reports')} />
         <QuickAction Icon={Plus} label="إضافة" onClick={handleSuggest} />
+        {/* ✅ 4. تحديث زر الماء السريع */}
         <QuickAction Icon={Droplet} label="ماء" onClick={() => setWaterCups(waterCups + 1)} />
       </div>
 
@@ -247,7 +271,7 @@ const targetFat = targets?.fat_g || 73
           <span style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>{meals.length}</span>
         </div>
 
-        {meals.length === 0 ? (
+        {meals.length === 0 && initialFetchDone ? (
           <div style={{
             background: 'var(--color-surface-1)',
             border: '1px dashed var(--color-border-strong)',
@@ -262,7 +286,7 @@ const targetFat = targets?.fat_g || 73
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {meals.map((m: Meal, i: number) => (
-              <div key={i} style={{
+              <div key={m.id || i} style={{
                 background: 'var(--color-surface-1)',
                 border: '1px solid var(--color-border-subtle)',
                 borderRadius: 'var(--radius-md)',
@@ -273,7 +297,7 @@ const targetFat = targets?.fat_g || 73
                   <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{m.name}</div>
                   {(m.protein || m.carbs || m.fat) && (
                     <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-                      ب {m.protein || 0}g · ك {m.carbs || 0}g · د {m.fat || 0}g
+                      {m.protein || 0}g · {m.carbs || 0}g · {m.fat || 0}g
                     </div>
                   )}
                 </div>
@@ -324,10 +348,10 @@ const targetFat = targets?.fat_g || 73
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>السلسلة</div>
-            <div style={{ fontSize: 14, fontWeight: 700 }}>{streak} يوم</div>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>{streak} أيام</div>
           </div>
         </button>
       </div>
     </div>
-  )
+  );
 }
