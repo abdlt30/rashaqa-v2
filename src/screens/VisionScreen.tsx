@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { Camera, Upload, X, Check, Loader } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
+import { useStore } from '../store/useStore' // ✅ 1. استيراد الـ Store
 
 interface FoodAnalysis {
   name: string
@@ -21,6 +22,9 @@ export default function VisionScreen() {
   const [saving, setSaving] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
+  
+  // ✅ 2. جلب دالة addMeal من الـ Store
+  const addMeal = useStore((s) => s.addMeal)
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -47,6 +51,7 @@ export default function VisionScreen() {
       const base64Data = base64.split(',')[1]
       const mimeMatch = base64.match(/data:(.*?);/)
       const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
+      
       const response = await fetch(
         'https://axthmghawwishcjlldfj.supabase.co/functions/v1/smart-service',
         {
@@ -69,24 +74,33 @@ export default function VisionScreen() {
     }
   }
 
+  // ✅ 3. تعديل دالة الحفظ لتستخدم الـ Store
   const saveMeal = async () => {
     if (!result) return
     setSaving(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { alert('يجب تسجيل الدخول'); return }
-      const { error } = await supabase.from('meals').insert({
-        user_id: user.id,
+      // تحديد نوع الوجبة تلقائياً بناءً على الوقت
+      const hour = new Date().getHours()
+      let mealType = 'snack'
+      if (hour >= 5 && hour < 11) mealType = 'breakfast'
+      else if (hour >= 11 && hour < 15) mealType = 'lunch'
+      else if (hour >= 15 && hour < 21) mealType = 'dinner'
+
+      // استدعاء دالة addMeal من الـ Store (التي تتولى الحفظ في Supabase وتحديث الواجهة)
+      await addMeal({
         name: result.name,
         calories: result.calories,
         protein: result.protein,
         carbs: result.carbs,
         fat: result.fat,
-        meal_type: 'lunch',
+        meal_type: mealType,
       })
-      if (error) { alert('فشل الحفظ: ' + error.message); return }
-      alert('✅ تم حفظ الوجبة')
-      navigate('/')
+
+      alert('✅ تم حفظ الوجبة بنجاح')
+      navigate('/') // العودة للرئيسية وسيتم عرض الوجبة فوراً
+    } catch (err) {
+      console.error(err)
+      alert('حدث خطأ أثناء الحفظ')
     } finally {
       setSaving(false)
     }
