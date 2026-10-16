@@ -228,7 +228,7 @@ export const useStore = create<AppState>()(
   try {
     // 1. تسجيل النشاط في daily_progress
     const { error: progressError } = await supabase
-      .from'daily_progress'
+      .from('daily_progress')
       .insert({
         user_id: userId,
         activity_type: 'workout',
