@@ -242,7 +242,7 @@ export const useStore = create<AppState>()(
 
     // 2. تحديث السلسلة (Streak)
     const { data: streakData } = await supabase
-      .from'streaks'
+      .from('streaks')
       .select('current_streak, last_activity_date')
       .eq('user_id', userId)
       .single();
