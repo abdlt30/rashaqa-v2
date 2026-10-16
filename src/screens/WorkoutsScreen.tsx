@@ -1,7 +1,20 @@
-import { useState } from 'react';
-import { Dumbbell, Play, Zap, Timer, Flame, ChevronLeft } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Dumbbell, Play, Zap, Timer, Flame, Loader2 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { useStore } from '../store/useStore';
 
 type MuscleGroup = 'all' | 'upper' | 'lower' | 'core' | 'cardio' | 'stretch';
+
+interface Exercise {
+  id: string;
+  name: string;
+  muscle_group: string;
+  sets: string;
+  duration_minutes: number;
+  level: string;
+  emoji: string;
+  calories_burned: number;
+}
 
 const GROUPS: { id: MuscleGroup; label: string }[] = [
   { id: 'all', label: 'الكل' },
@@ -10,15 +23,6 @@ const GROUPS: { id: MuscleGroup; label: string }[] = [
   { id: 'core', label: 'الجذع' },
   { id: 'cardio', label: 'كارديو' },
   { id: 'stretch', label: 'تمدد' },
-];
-
-const EXERCISES = [
-  { id: 1, name: 'قرفصاء', group: 'lower' as MuscleGroup, sets: '3×12', duration: '5 د', level: 'مبتدئ', emoji: '🦵' },
-  { id: 2, name: 'بلانك', group: 'core' as MuscleGroup, sets: '3×45 ث', duration: '4 د', level: 'متوسط', emoji: '🧘' },
-  { id: 3, name: 'تمرين الضغط', group: 'upper' as MuscleGroup, sets: '3×10', duration: '5 د', level: 'متوسط', emoji: '💪' },
-  { id: 4, name: 'الجري بالمكان', group: 'cardio' as MuscleGroup, sets: '3×60 ث', duration: '6 د', level: 'مبتدئ', emoji: '🏃' },
-  { id: 5, name: 'الطعنات', group: 'lower' as MuscleGroup, sets: '3×10', duration: '5 د', level: 'متوسط', emoji: '🦿' },
-  { id: 6, name: 'تمدّد الظهر', group: 'stretch' as MuscleGroup, sets: '2×30 ث', duration: '3 د', level: 'مبتدئ', emoji: '🤸' },
 ];
 
 const C = {
@@ -33,7 +37,52 @@ const C = {
 
 export default function WorkoutsScreen() {
   const [active, setActive] = useState<MuscleGroup>('all');
-  const filtered = active === 'all' ? EXERCISES : EXERCISES.filter(e => e.group === active);
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [logging, setLogging] = useState(false);
+
+  // ✅ 1. استدعاء دالة logWorkout من الـ Store
+  const logWorkout = useStore((s) => s.logWorkout);
+
+  // ✅ 2. جلب التمارين من Supabase عند فتح الشاشة
+  useEffect(() => {
+    const fetchExercises = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('exercises')
+          .select('*')
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        setExercises(data || []);
+      } catch (error) {
+        console.error('Error fetching exercises:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchExercises();
+  }, []);
+
+  // ✅ 3. تسجيل التمرين عند الضغط على "ابدأ التمرين الآن"
+  const handleStartWorkout = async () => {
+    setLogging(true);
+    try {
+      await logWorkout({
+        name: 'تنشيط الحرق وتقوية الجذع',
+        duration: 22,
+        caloriesBurned: 150,
+      });
+      alert('✅ تم تسجيل التمرين بنجاح!');
+    } catch (error) {
+      console.error(error);
+      alert('حدث خطأ أثناء تسجيل التمرين');
+    } finally {
+      setLogging(false);
+    }
+  };
+
+  const filtered = active === 'all' ? exercises : exercises.filter(e => e.muscle_group === active);
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg, paddingBottom: 100, direction: 'rtl', fontFamily: 'var(--font-arabic, system-ui)' }}>
@@ -58,9 +107,18 @@ export default function WorkoutsScreen() {
             <StatPill icon={<Flame size={14} />} text="140-160 سعرة" />
             <StatPill icon={<Dumbbell size={14} />} text="بدون أدوات" />
           </div>
-          <button style={{ width: '100%', background: '#fff', color: C.primary, fontWeight: 700, padding: '14px 0', borderRadius: 16, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 15, cursor: 'pointer' }}>
-            <Play size={18} fill={C.primary} />
-            ابدأ التمرين الآن
+          <button 
+            onClick={handleStartWorkout}
+            disabled={logging}
+            style={{ 
+              width: '100%', background: '#fff', color: C.primary, fontWeight: 700, 
+              padding: '14px 0', borderRadius: 16, border: 'none', 
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, 
+              fontSize: 15, cursor: logging ? 'wait' : 'pointer', opacity: logging ? 0.7 : 1 
+            }}
+          >
+            {logging ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Play size={18} fill={C.primary} />}
+            {logging ? 'جاري التسجيل...' : 'ابدأ التمرين الآن'}
           </button>
         </div>
       </section>
@@ -73,11 +131,7 @@ export default function WorkoutsScreen() {
               key={g.id}
               onClick={() => setActive(g.id)}
               style={{
-                padding: '8px 16px',
-                borderRadius: 999,
-                fontSize: 13,
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
+                padding: '8px 16px', borderRadius: 999, fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap',
                 border: active === g.id ? 'none' : `1px solid ${C.border}`,
                 background: active === g.id ? C.primary : C.card,
                 color: active === g.id ? '#fff' : '#4A4A4A',
@@ -96,24 +150,33 @@ export default function WorkoutsScreen() {
           <h3 style={{ fontWeight: 700, color: C.text, margin: 0, fontSize: 16 }}>مكتبة التمارين</h3>
           <span style={{ fontSize: 12, color: C.textMuted }}>{filtered.length} تمرين</span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          {filtered.map(ex => (
-            <button
-              key={ex.id}
-              style={{ background: C.card, borderRadius: 20, padding: 16, textAlign: 'right', border: `1px solid ${C.border}`, cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
-            >
-              <div style={{ width: 48, height: 48, borderRadius: 14, background: C.primarySoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, marginBottom: 12 }}>
-                {ex.emoji}
-              </div>
-              <h4 style={{ fontWeight: 700, color: C.text, fontSize: 14, margin: '0 0 4px' }}>{ex.name}</h4>
-              <p style={{ fontSize: 11, color: C.textMuted, margin: '0 0 8px' }}>{ex.sets} • {ex.duration}</p>
-              <span style={{ fontSize: 10, fontWeight: 600, color: C.primary, background: C.primarySoft, padding: '3px 10px', borderRadius: 999, alignSelf: 'flex-start' }}>
-                {ex.level}
-              </span>
-            </button>
-          ))}
-        </div>
+        
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <Loader2 size={32} color={C.primary} style={{ animation: 'spin 1s linear infinite' }} />
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {filtered.map(ex => (
+              <button
+                key={ex.id}
+                style={{ background: C.card, borderRadius: 20, padding: 16, textAlign: 'right', border: `1px solid ${C.border}`, cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
+              >
+                <div style={{ width: 48, height: 48, borderRadius: 14, background: C.primarySoft, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, marginBottom: 12 }}>
+                  {ex.emoji}
+                </div>
+                <h4 style={{ fontWeight: 700, color: C.text, fontSize: 14, margin: '0 0 4px' }}>{ex.name}</h4>
+                <p style={{ fontSize: 11, color: C.textMuted, margin: '0 0 8px' }}>{ex.sets} • {ex.duration_minutes} د</p>
+                <span style={{ fontSize: 10, fontWeight: 600, color: C.primary, background: C.primarySoft, padding: '3px 10px', borderRadius: 999, alignSelf: 'flex-start' }}>
+                  {ex.level}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </section>
+      
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
