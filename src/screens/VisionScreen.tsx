@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { Camera, Upload, X, Check, Loader } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
-import { askAi } from '../services/aiService'; // ✅ استيراد الدالة الجديدة
+import { askAi } from '../services/aiService';
 
 interface FoodAnalysis {
   name: string;
@@ -36,7 +36,7 @@ export default function VisionScreen() {
     reader.readAsDataURL(file);
   };
 
-  // ✅ 1. دالة تحليل الصورة الجديدة (باستخدام aiService)
+  // ✅ 1. دالة تحليل الصورة (باستخدام aiService)
   const analyzeImage = async (base64: string) => {
     setAnalyzing(true);
     setResult(null);
@@ -45,7 +45,6 @@ export default function VisionScreen() {
       const mimeMatch = base64.match(/data:(.*?);/);
       const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
-      // استخدام askAi بدلاً من fetch اليدوي
       const res = await askAi<FoodAnalysis>('analyze', {
         imageBase64: base64Data,
         mimeType: mimeType,
@@ -64,7 +63,7 @@ export default function VisionScreen() {
     }
   };
 
-  // ✅ 2. دالة الحفظ الجديدة (باستخدام الـ Store)
+  // ✅ 2. دالة حفظ الوجبة (باستخدام الـ Store) - دالة واحدة فقط!
   const saveMeal = async () => {
     if (!result) return;
     setSaving(true);
@@ -93,35 +92,6 @@ export default function VisionScreen() {
       setSaving(false);
     }
   };
-
-  // ... (باقي الـ JSX كما هو)
-
-      // تحديد نوع الوجبة تلقائياً بناءً على الوقت
-      const hour = new Date().getHours()
-      let mealType = 'snack'
-      if (hour >= 5 && hour < 11) mealType = 'breakfast'
-      else if (hour >= 11 && hour < 15) mealType = 'lunch'
-      else if (hour >= 15 && hour < 21) mealType = 'dinner'
-
-      // استدعاء دالة addMeal من الـ Store (التي تتولى الحفظ في Supabase وتحديث الواجهة)
-      await addMeal({
-        name: result.name,
-        calories: result.calories,
-        protein: result.protein,
-        carbs: result.carbs,
-        fat: result.fat,
-        meal_type: mealType,
-      })
-
-      alert('✅ تم حفظ الوجبة بنجاح')
-      navigate('/') // العودة للرئيسية وسيتم عرض الوجبة فوراً
-    } catch (err) {
-      console.error(err)
-      alert('حدث خطأ أثناء الحفظ')
-    } finally {
-      setSaving(false)
-    }
-  
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--color-bg-base)', direction: 'rtl', paddingBottom: 100, fontFamily: 'var(--font-arabic)' }}>
@@ -201,5 +171,5 @@ export default function VisionScreen() {
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
-  )
+  );
 }
