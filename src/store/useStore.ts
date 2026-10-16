@@ -76,6 +76,7 @@ interface AppState {
   upgradeToGold: () => void;
   signOut: () => Promise<void>;
   logWorkout: (workout: { name: string; duration: number; caloriesBurned: number }) => Promise<void>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<void>; // ✅ أضف هذا السطر هنا
   resetAll: () => void;
 }
 
@@ -266,7 +267,32 @@ export const useStore = create<AppState>()(
     throw error;
   }
 },
+     // ✅ دالة تحديث الملف الشخصي (Supabase + State)
+   updateProfile: async (updates) => {
+  const { userId, user } = get();
+  if (!userId || !user) {
+    console.warn('User not logged in');
+    return;
+  }
 
+  try {
+    // 1. تحديث Supabase
+    const { error } = await supabase
+      .from('profiles')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', userId);
+
+    if (error) throw error;
+
+    // 2. تحديث الحالة المحلية (الذاكرة)
+    set({
+      user: { ...user, ...updates },
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    throw error;
+  }
+},
       upgradeToGold: () => set({ plan: 'gold' }),
 
       signOut: async () => {
