@@ -310,8 +310,24 @@ export const useStore = create<AppState>()(
       resetAll: () => set(INITIAL_STATE),
     }),
     {
+            resetAll: () => set(INITIAL_STATE),
+    }),
+    {
       name: 'rasha-qa-store',
-      version: 2, // ⚠️ قمنا بزيادة الإصدار لأننا غيرنا هيكل البيانات
+      version: 2,
+      // ✅ دالة الترحيل: تحول البيانات القديمة إلى الهيكل الجديد
+      migrate: (persistedState: any, version: number) => {
+        if (version === 1) {
+          // ترحيل البيانات من النسخة 1 إلى 2
+          return {
+            ...persistedState,
+            userId: persistedState.userId || null,
+            targets: persistedState.targets || null,
+            waterCups: persistedState.waterCups || 0,
+          };
+        }
+        return persistedState;
+      },
       partialize: (state) => ({
         isOnboarded: state.isOnboarded,
         isLoggedIn: state.isLoggedIn,
