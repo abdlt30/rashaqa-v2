@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Flame, Droplet, Sparkles, TrendingUp, Camera, Mic, Search,
+  Flame, Droplet, Sparkles, Camera, Mic, Search,
   Plus, Scale, Award, Loader2, Utensils
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -84,7 +84,7 @@ export default function HomeScreen() {
   const meals = useStore((s) => s.meals);
   const waterCups = useStore((s) => s.waterCups);
   const targets = useStore((s) => s.targets);
-  
+
   const fetchDailyData = useStore((s) => s.fetchDailyData);
   const addMeal = useStore((s) => s.addMeal);
   const setWaterCups = useStore((s) => s.setWaterCups);
@@ -147,6 +147,7 @@ export default function HomeScreen() {
       minHeight: '100dvh',
       color: 'var(--color-text-primary)',
     }}>
+      {/* HEADER */}
       <header style={{
         display: 'flex', justifyContent: 'space-between',
         alignItems: 'center', marginBottom: 20,
@@ -173,6 +174,7 @@ export default function HomeScreen() {
         </div>
       </header>
 
+      {/* PRIMARY KPI */}
       <div style={{
         background: 'var(--color-surface-1)',
         border: '1px solid var(--color-border-subtle)',
@@ -193,12 +195,14 @@ export default function HomeScreen() {
         </p>
       </div>
 
+      {/* MACROS */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <MacroBar label="بروتين" consumed={consumed.protein} target={targetProtein} color="var(--color-primary-500)" />
         <MacroBar label="كارب" consumed={consumed.carbs} target={targetCarbs} color="var(--color-bronze-500)" />
         <MacroBar label="دهون" consumed={consumed.fat} target={targetFat} color="var(--color-warning)" />
       </div>
 
+      {/* CTA */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
         <button
           onClick={handleSuggest}
@@ -236,6 +240,7 @@ export default function HomeScreen() {
         </button>
       </div>
 
+      {/* QUICK ACTIONS */}
       <div style={{
         display: 'flex', gap: 8, marginBottom: 20,
         padding: '14px 8px',
@@ -250,6 +255,7 @@ export default function HomeScreen() {
         <QuickAction Icon={Droplet} label="ماء" onClick={() => setWaterCups(waterCups + 1)} />
       </div>
 
+      {/* MEALS LIST */}
       <div style={{ marginBottom: 20 }}>
         <div style={{
           display: 'flex', justifyContent: 'space-between',
@@ -298,6 +304,7 @@ export default function HomeScreen() {
         )}
       </div>
 
+      {/* WEIGHT + STREAK */}
       <div style={{ display: 'flex', gap: 10 }}>
         <button onClick={() => navigate('/reports')} style={{
           flex: 1, background: 'var(--color-surface-1)',
@@ -339,6 +346,8 @@ export default function HomeScreen() {
           </div>
         </button>
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
