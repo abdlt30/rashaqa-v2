@@ -85,7 +85,6 @@ export default function HomeScreen() {
   const waterCups = useStore((s) => s.waterCups);
   const targets = useStore((s) => s.targets);
   
-  // ✅ استخدام الدوال الجديدة من الـ Store
   const fetchDailyData = useStore((s) => s.fetchDailyData);
   const addMeal = useStore((s) => s.addMeal);
   const setWaterCups = useStore((s) => s.setWaterCups);
@@ -93,7 +92,6 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
   const [initialFetchDone, setInitialFetchDone] = useState(false);
 
-  // ✅ 1. جلب بيانات اليوم عند فتح الشاشة
   useEffect(() => {
     const loadData = async () => {
       if (userId) {
@@ -119,7 +117,6 @@ export default function HomeScreen() {
 
   const remaining = Math.max(targetCalories - consumed.calories, 0);
 
-  // ✅ 2. معالجة إضافة الوجبة من الذكاء الاصطناعي
   const handleSuggest = async () => {
     setLoading(true);
     try {
@@ -131,7 +128,6 @@ export default function HomeScreen() {
         },
       });
       if (res?.ok && res.data) {
-        // إضافة الوجبة إلى Supabase ثم تحديث الواجهة
         await addMeal(res.data);
       }
     } finally {
@@ -140,7 +136,7 @@ export default function HomeScreen() {
   };
 
   const tod = getTimeOfDay();
-  const streak = 1; // TODO: سيتم جلبه من جدول streaks لاحقاً
+  const streak = 1;
   const currentWeight = user?.weight_kg || 69;
 
   return (
@@ -151,7 +147,6 @@ export default function HomeScreen() {
       minHeight: '100dvh',
       color: 'var(--color-text-primary)',
     }}>
-      {/* HEADER */}
       <header style={{
         display: 'flex', justifyContent: 'space-between',
         alignItems: 'center', marginBottom: 20,
@@ -178,7 +173,6 @@ export default function HomeScreen() {
         </div>
       </header>
 
-      {/* PRIMARY KPI */}
       <div style={{
         background: 'var(--color-surface-1)',
         border: '1px solid var(--color-border-subtle)',
@@ -199,14 +193,12 @@ export default function HomeScreen() {
         </p>
       </div>
 
-      {/* MACROS */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <MacroBar label="بروتين" consumed={consumed.protein} target={targetProtein} color="var(--color-primary-500)" />
         <MacroBar label="كارب" consumed={consumed.carbs} target={targetCarbs} color="var(--color-bronze-500)" />
         <MacroBar label="دهون" consumed={consumed.fat} target={targetFat} color="var(--color-warning)" />
       </div>
 
-      {/* CTA */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
         <button
           onClick={handleSuggest}
@@ -226,7 +218,6 @@ export default function HomeScreen() {
             : <><Sparkles size={18} /> ماذا آكل الآن؟</>
           }
         </button>
-        {/* ✅ 3. تحديث زر الماء ليتزامن مع Supabase */}
         <button
           onClick={() => setWaterCups(waterCups + 1)}
           style={{
@@ -245,7 +236,6 @@ export default function HomeScreen() {
         </button>
       </div>
 
-      {/* QUICK ACTIONS */}
       <div style={{
         display: 'flex', gap: 8, marginBottom: 20,
         padding: '14px 8px',
@@ -257,11 +247,9 @@ export default function HomeScreen() {
         <QuickAction Icon={Mic} label="صوت" onClick={() => navigate('/vision')} />
         <QuickAction Icon={Search} label="بحث" onClick={() => navigate('/reports')} />
         <QuickAction Icon={Plus} label="إضافة" onClick={handleSuggest} />
-        {/* ✅ 4. تحديث زر الماء السريع */}
         <QuickAction Icon={Droplet} label="ماء" onClick={() => setWaterCups(waterCups + 1)} />
       </div>
 
-      {/* MEALS LIST */}
       <div style={{ marginBottom: 20 }}>
         <div style={{
           display: 'flex', justifyContent: 'space-between',
@@ -310,7 +298,6 @@ export default function HomeScreen() {
         )}
       </div>
 
-      {/* WEIGHT + STREAK */}
       <div style={{ display: 'flex', gap: 10 }}>
         <button onClick={() => navigate('/reports')} style={{
           flex: 1, background: 'var(--color-surface-1)',
