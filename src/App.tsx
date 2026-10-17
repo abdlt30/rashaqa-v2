@@ -20,7 +20,7 @@ function OnboardingRoute() {
     return <Navigate to="/" replace />
   }
   
-  return <div style={{ padding: 50, textAlign: 'center' }}>مرحباً، التطبيق يعمل!</div>
+  return <OnboardingFlow />
 }
 
 // ✅ مكون منفصل للتطبيق الرئيسي
