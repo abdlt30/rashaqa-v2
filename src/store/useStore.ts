@@ -309,9 +309,7 @@ export const useStore = create<AppState>()(
 
       resetAll: () => set(INITIAL_STATE),
     }),
-    {
-            resetAll: () => set(INITIAL_STATE),
-    }),
+  
     {
       name: 'rasha-qa-store',
       version: 2,
