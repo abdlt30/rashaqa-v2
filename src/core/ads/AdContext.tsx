@@ -34,7 +34,8 @@ export function AdProviderRoot({ children }: { children: React.ReactNode }) {
         const { data: cfg } = await supabase.rpc('get_ad_config', { p_user_id: user.id })
         setConfig(cfg as AdConfig)
         const isPremium = ent?.is_premium ?? false
-        const p: AdProvider = isPremium ? new NoopProvider() : new MockProvider()
+        // ✅ تعطيل الإعلانات مؤقتاً للاختبار
+      const p: AdProvider = new NoopProvider() // دائماً استخدم NoopProvider
         await p.initialize()
         setProvider(p)
       } catch (e) { console.warn('[Ads]', e) }
