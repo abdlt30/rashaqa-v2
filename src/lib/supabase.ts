@@ -1,24 +1,15 @@
-// src/services/database.ts
-import { supabase } from '../lib/supabase';
-import { Workout } from '../types/workout'; // النوع الذي أنشأناه سابقاً
+import { createClient } from '@supabase/supabase-js';
 
-// دالة لجلب جميع التمارين
-export const fetchExercises = async (): Promise<Workout[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('exercises')
-      .select('*')
-      .order('created_at', { ascending: false }); // ترتيب الأحدث أولاً
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-    if (error) {
-      console.error('خطأ في جلب التمارين من Supabase:', error.message);
-      throw error;
-    }
-    
-    // تحويل البيانات لتتطابق مع واجهة Workout
-    return (data || []) as Workout[];
-  } catch (err) {
-    console.error('خطأ غير متوقع:', err);
-    return [];
-  }
-};
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error("مفاتيح Supabase مفقودة. يرجى التأكد من ملف .env");
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export function getFoodImageUrl(fileName: string): string {
+  const { data } = supabase.storage.from('meals').getPublicUrl(fileName);
+  return data.publicUrl;
+}
