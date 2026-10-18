@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '../lib/supabase'; // تأكد من مسار عميل Supabase
-
+import { Session, User } from '@supabase/supabase-js';
 /* ============ Types ============ */
 export interface MacroTargets {
   calories: number;
@@ -56,7 +56,11 @@ interface AppState {
   userId: string | null;
   user: UserProfile | null;
   targets: MacroTargets | null;
-
+  
+  session: Session | null;
+  authUser: User | null;
+  isAuthLoading: boolean;
+  
   // === Runtime state ===
   meals: Meal[];
   waterCups: number;
@@ -78,6 +82,10 @@ interface AppState {
   logWorkout: (workout: { name: string; duration: number; caloriesBurned: number }) => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>; // ✅ أضف هذا السطر هنا
   resetAll: () => void;
+  
+  setSession: (session: Session | null) => void;
+  signOut: () => Promise<void>;
+  
 }
 
 /* ============ Initial State ============ */
