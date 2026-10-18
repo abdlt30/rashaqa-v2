@@ -80,13 +80,15 @@ interface AppState {
   clearMeals: () => void;
   setWaterCups: (cups: number) => Promise<void>;
   upgradeToGold: () => void;
-  signOut: () => Promise<void>;
   logWorkout: (workout: { name: string; duration: number; caloriesBurned: number }) => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   resetAll: () => void;
   
-  // Auth Actions
+  // Auth Actions (تمت إضافتها هنا)
   setSession: (session: Session | null) => void;
+  signOut: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signUp: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 /* ============ Initial State ============ */
@@ -118,6 +120,30 @@ export const useStore = create<AppState>()(
         isAuthLoading: false 
       }),
 
+      // ✅ إضافة دالة تسجيل الدخول
+      signIn: async (email, password) => {
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          set({ session: data.session, authUser: data.user, userId: data.user?.id, isLoggedIn: true });
+          return { success: true };
+        } catch (error: any) {
+          return { success: false, error: error.message };
+        }
+      },
+
+      // ✅ إضافة دالة إنشاء الحساب
+      signUp: async (email, password) => {
+        try {
+          const { data, error } = await supabase.auth.signUp({ email, password });
+          if (error) throw error;
+          // ملاحظة: قد تحتاج لتأكيد البريد الإلكتروني حسب إعدادات Supabase
+          return { success: true };
+        } catch (error: any) {
+          return { success: false, error: error.message };
+        }
+      },
+
       completeOnboarding: (data) =>
         set({
           isOnboarded: true,
@@ -148,14 +174,12 @@ export const useStore = create<AppState>()(
         const today = new Date().toISOString().split('T')[0];
 
         try {
-          // 1. جلب وجبات اليوم (استخدام log_date بدلاً من created_at)
           const { data: mealsData } = await supabase
             .from('food_logs')
             .select('*')
             .eq('user_id', userId)
             .eq('log_date', today);
 
-          // 2. جلب سجل الماء لليوم (استخدام log_date)
           const { data: waterData } = await supabase
             .from('water_logs')
             .select('amount_ml')
@@ -166,7 +190,7 @@ export const useStore = create<AppState>()(
 
           set({
             meals: mealsData || [],
-            waterCups: Math.round(totalWater / 250), // التقريب لتجنب الكسور
+            waterCups: Math.round(totalWater / 250),
           });
         } catch (error) {
           console.error('Error fetching daily data:', error);
@@ -230,24 +254,19 @@ export const useStore = create<AppState>()(
         }
       },
       
-      // ✅ تصحيح تسجيل التمرين ليتوافق مع جدول workout_logs
       logWorkout: async (workout) => {
         const { userId } = get();
         if (!userId) return;
 
         try {
-          // في المستقبل، سنمرر الـ exercise_id الحقيقي بدلاً من name
-          // هنا نقوم بتسجيله في جدول السجلات
           const { error } = await supabase
             .from('workout_logs')
             .insert({
               user_id: userId,
-              exercise_id: null, // يمكن تحديثه لاحقاً بربط التمرين
-              // يمكنك إضافة تفاصيل أخرى إذا أضفت أعمدة للجدول
+              exercise_id: null,
             });
 
           if (error) {
-            // إذا لم يكن الجدول يحتوي على هذه الأعمدة، سنقوم بطباعة الخطأ فقط
             console.warn('Note: workout_logs schema might need adjustments:', error.message);
           }
         } catch (error) {
