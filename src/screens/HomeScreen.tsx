@@ -1,341 +1,353 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { supabase } from '../lib/supabase'; // تأكد من مسار عميل Supabase
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Flame, Droplet, Sparkles, Camera, Mic, Search,
+  Plus, Scale, Award, Loader2, Utensils
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useStore } from '../store/useStore';
+import { askAi } from '../services/aiService';
 
-/* ============ Types ============ */
-export interface MacroTargets {
-  calories: number;
-  protein_g: number;
-  carbs_g: number;
-  fat_g: number;
-  water_ml: number;
-}
-
-export interface UserProfile {
-  name: string;
-  weight_kg: number;
-  targetCalories: number;
-  country: string;
-  goal: string;
-  age?: number;
-  gender?: 'male' | 'female';
-  height_cm?: number;
-  target_weight_kg?: number;
-  activity_level?: string;
-  diet_preference?: string;
-}
-
-export interface OnboardingData {
-  name: string;
-  goal: string;
-  age?: number;
-  gender?: 'male' | 'female';
-  height_cm?: number;
-  weight_kg?: number;
-  target_weight_kg?: number;
-  activity_level?: string;
-  diet_preference?: string;
-}
-
-export interface Meal {
-  id?: string; // ✅ إضافة معرف فريد للوجبة للتزامن مع Supabase
+interface Meal {
+  id?: string;
   name: string;
   calories: number;
   protein?: number;
   carbs?: number;
   fat?: number;
-  meal_type?: string;
-  image_url?: string;
-  created_at?: string;
 }
 
-interface AppState {
-  // === Core state ===
-  isOnboarded: boolean;
-  isLoggedIn: boolean;
-  userId: string | null;
-  user: UserProfile | null;
-  targets: MacroTargets | null;
-
-  // === Runtime state ===
-  meals: Meal[];
-  waterCups: number;
-  plan: 'free' | 'gold';
-
-  // === Actions ===
-  completeOnboarding: (data: OnboardingData) => void;
-  setUserId: (id: string | null) => void;
-  setTargets: (t: MacroTargets | null) => void;
-  login: (email: string) => void;
-  skipLogin: () => void;
-  fetchDailyData: () => Promise<void>; // ✅ دالة جديدة لجلب البيانات
-  addMeal: (meal: Meal) => Promise<void>; // ✅ أصبحت غير متزامنة
-  removeMeal: (id: string) => Promise<void>; // ✅ تعتمد على الـ ID
-  clearMeals: () => void;
-  setWaterCups: (cups: number) => Promise<void>; // ✅ أصبحت غير متزامنة
-  upgradeToGold: () => void;
-  signOut: () => Promise<void>;
-  logWorkout: (workout: { name: string; duration: number; caloriesBurned: number }) => Promise<void>;
-  updateProfile: (updates: Partial<UserProfile>) => Promise<void>; // ✅ أضف هذا السطر هنا
-  resetAll: () => void;
+/* ============ Helpers ============ */
+function getTimeOfDay(): 'morning' | 'afternoon' | 'evening' | 'night' {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return 'morning';
+  if (h >= 12 && h < 17) return 'afternoon';
+  if (h >= 17 && h < 22) return 'evening';
+  return 'night';
 }
 
-/* ============ Initial State ============ */
-const INITIAL_STATE = {
-  isOnboarded: false,
-  isLoggedIn: false,
-  userId: null as string | null,
-  user: null as UserProfile | null,
-  targets: null as MacroTargets | null,
-  meals: [] as Meal[],
-  waterCups: 0,
-  plan: 'free' as const,
-};
+function timeGreeting(t: ReturnType<typeof getTimeOfDay>): string {
+  return { morning: 'صباح الخير', afternoon: 'مساء الخير', evening: 'مساء الخير', night: 'مرحباً' }[t];
+}
 
-/* ============ Store ============ */
-export const useStore = create<AppState>()(
-  persist(
-    (set, get) => ({
-      ...INITIAL_STATE,
+/* ============ Sub-components ============ */
+function MacroBar({ label, consumed, target, color }: {
+  label: string; consumed: number; target: number; color: string;
+}) {
+  const pct = Math.min((consumed / Math.max(target, 1)) * 100, 100);
+  return (
+    <div style={{
+      flex: 1, background: 'var(--color-surface-1)',
+      border: '1px solid var(--color-border-subtle)',
+      borderRadius: 'var(--radius-md)', padding: '12px 10px',
+      display: 'flex', flexDirection: 'column', gap: 8,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>{label}</span>
+        <span style={{ color: 'var(--color-text-primary)', fontSize: 12, fontWeight: 700 }}>
+          {Math.round(consumed)}
+        </span>
+      </div>
+      <div style={{ height: 4, background: 'var(--color-surface-2)', borderRadius: 2, overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: color, transition: 'width 500ms ease' }} />
+      </div>
+    </div>
+  );
+}
 
-      completeOnboarding: (data) =>
-        set({
-          isOnboarded: true,
-          user: {
-            name: data.name,
-            weight_kg: data.weight_kg || 70,
-            targetCalories: 2300, // يمكن تحديثها لاحقاً بناءً على الحسابات
-            country: 'MA',
-            goal: data.goal,
-            age: data.age,
-            gender: data.gender,
-            height_cm: data.height_cm,
-            target_weight_kg: data.target_weight_kg,
-            activity_level: data.activity_level,
-            diet_preference: data.diet_preference,
-          },
-        }),
+function QuickAction({ icon: Icon, label, onClick }: {
+  icon: any; label: string; onClick: () => void;
+}) {
+  return (
+    <button onClick={onClick} aria-label={label} style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+      background: 'transparent', border: 'none', cursor: 'pointer',
+      padding: 0, flex: 1, fontFamily: 'inherit'
+    }}>
+      <div style={{
+        width: 46, height: 46, borderRadius: 'var(--radius-md)',
+        background: 'var(--color-surface-2)',
+        border: '1px solid var(--color-border-subtle)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <Icon size={20} color="var(--color-primary-500)" strokeWidth={1.8} />
+      </div>
+      <span style={{ color: 'var(--color-text-muted)', fontSize: 10 }}>{label}</span>
+    </button>
+  );
+}
 
-      setUserId: (id) => set({ userId: id }),
-      setTargets: (t) => set({ targets: t }),
-      login: (_email: string) => set({ isLoggedIn: true, isOnboarded: true }),
-      skipLogin: () => set({ isOnboarded: true, isLoggedIn: false }),
+/* ============ Main ============ */
+export default function HomeScreen() {  // <-- تأكد من وجود هذه الكلمة: export default
+  const navigate = useNavigate();
+  const user = useStore((s) => s.user);
+  const userId = useStore((s) => s.userId);
+  const meals = useStore((s) => s.meals);
+  const waterCups = useStore((s) => s.waterCups);
+  const targets = useStore((s) => s.targets);
 
-      // ✅ دالة لجلب بيانات اليوم من Supabase عند فتح التطبيق
-      fetchDailyData: async () => {
-        const { userId } = get();
-        if (!userId) return;
+  const fetchDailyData = useStore((s) => s.fetchDailyData);
+  const addMeal = useStore((s) => s.addMeal);
+  const setWaterCups = useStore((s) => s.setWaterCups);
 
-        const today = new Date().toISOString().split('T')[0];
+  const [loading, setLoading] = useState(false);
+  const [initialFetchDone, setInitialFetchDone] = useState(false);
 
-        try {
-          // 1. جلب وجبات اليوم
-          const { data: mealsData } = await supabase
-            .from('food_logs')
-            .select('*')
-            .eq('user_id', userId)
-            .gte('created_at', today);
+  useEffect(() => {
+    const loadData = async () => {
+      if (userId) {
+        await fetchDailyData();
+        setInitialFetchDone(true);
+      }
+    };
+    loadData();
+  }, [userId, fetchDailyData]);
 
-          // 2. جلب سجل الماء لليوم
-          const { data: waterData } = await supabase
-            .from('water_logs')
-            .select('amount_ml')
-            .eq('user_id', userId)
-            .gte('logged_at', today);
+  const targetCalories = targets?.calories || user?.targetCalories || 2300;
+  const targetProtein = targets?.protein_g || 138;
+  const targetCarbs = targets?.carbs_g || 248;
+  const targetFat = targets?.fat_g || 73;
+  const targetWaterCups = targets?.water_ml ? Math.round(targets.water_ml / 250) : 8;
 
-          const totalWater = waterData?.reduce((sum, log) => sum + log.amount_ml, 0) || 0;
+  const consumed = useMemo(() => ({
+    calories: meals.reduce((s: number, m: Meal) => s + (m.calories || 0), 0),
+    protein: meals.reduce((s: number, m: Meal) => s + (m.protein || 0), 0),
+    carbs: meals.reduce((s: number, m: Meal) => s + (m.carbs || 0), 0),
+    fat: meals.reduce((s: number, m: Meal) => s + (m.fat || 0), 0),
+  }), [meals]);
 
-          set({
-            meals: mealsData || [],
-            waterCups: totalWater / 250, // افترضنا أن الكوب 250 مل
-          });
-        } catch (error) {
-          console.error('Error fetching daily data:', error);
-        }
-      },
+  const remaining = Math.max(targetCalories - consumed.calories, 0);
 
-      // ✅ إضافة وجبة إلى Supabase ثم تحديث الواجهة
-      addMeal: async (meal) => {
-        const { userId, meals } = get();
-        if (!userId) return;
-
-        try {
-          const { data, error } = await supabase
-            .from('food_logs')
-            .insert({
-              user_id: userId,
-              name: meal.name,
-              calories: meal.calories,
-              protein: meal.protein || 0,
-              carbs: meal.carbs || 0,
-              fat: meal.fat || 0,
-              meal_type: meal.meal_type || 'snack',
-            })
-            .select()
-            .single();
-
-          if (error) throw error;
-
-          // تحديث الحالة المحلية بالبيانات القادمة من Supabase (التي تحتوي على ID)
-          set({ meals: [...meals, data] });
-        } catch (error) {
-          console.error('Error adding meal:', error);
-        }
-      },
-
-      // ✅ حذف وجبة من Supabase باستخدام الـ ID
-      removeMeal: async (id) => {
-        const { meals } = get();
-        try {
-          await supabase.from('food_logs').delete().eq('id', id);
-          set({ meals: meals.filter((m) => m.id !== id) });
-        } catch (error) {
-          console.error('Error removing meal:', error);
-        }
-      },
-
-      clearMeals: () => set({ meals: [] }),
-
-      // ✅ تسجيل الماء في Supabase
-      setWaterCups: async (cups) => {
-        const { userId, waterCups } = get();
-        if (!userId) return;
-
-        const diff = cups - waterCups;
-        const amount_ml = diff * 250;
-
-        try {
-          await supabase.from('water_logs').insert({
-            user_id: userId,
-            amount_ml,
-            logged_at: new Date().toISOString(),
-          });
-          set({ waterCups: cups });
-        } catch (error) {
-          console.error('Error logging water:', error);
-        }
-      },
-      
-      // ✅ تسجيل التمرين في Supabase
-      
-    logWorkout: async (workout) => {
-    const { userId } = get();
-  if (!userId) {
-    console.warn('User not logged in');
-    return;
-  }
-
-  try {
-    // 1. تسجيل النشاط في daily_progress
-    const { error: progressError } = await supabase
-      .from('daily_progress')
-      .insert({
-        user_id: userId,
-        activity_type: 'workout',
-        activity_name: workout.name,
-        duration_minutes: workout.duration,
-        calories_burned: workout.caloriesBurned,
-        logged_at: new Date().toISOString(),
+  const handleSuggest = async () => {
+    setLoading(true);
+    try {
+      const res = await askAi('suggest', {
+        body: {
+          country: user?.country || 'MA',
+          goal: user?.goal || 'maintain',
+          remainingCalories: remaining,
+        },
       });
-
-    if (progressError) throw progressError;
-
-    // 2. تحديث السلسلة (Streak)
-    const { data: streakData } = await supabase
-      .from('streaks')
-      .select('current_streak, last_activity_date')
-      .eq('user_id', userId)
-      .single();
-
-    const today = new Date().toISOString().split('T')[0];
-    if (streakData) {
-      const lastDate = streakData.last_activity_date;
-      const newStreak = lastDate === today ? streakData.current_streak : (streakData.current_streak || 0) + 1;
-      
-      await supabase
-        .from('streaks')
-        .update({ current_streak: newStreak, last_activity_date: today })
-        .eq('user_id', userId);
-    } else {
-      // إذا لم يكن هناك سجل سلسلة، ننشئ واحداً جديداً
-      await supabase
-        .from('streaks')
-        .insert({ user_id: userId, current_streak: 1, last_activity_date: today });
+      if (res?.ok && res.data) {
+        await addMeal(res.data);
+      }
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Error logging workout:', error);
-    throw error;
-  }
-},
-     // ✅ دالة تحديث الملف الشخصي (Supabase + State)
-   updateProfile: async (updates) => {
-  const { userId, user } = get();
-  if (!userId || !user) {
-    console.warn('User not logged in');
-    return;
-  }
+  };
 
-  try {
-    // 1. تحديث Supabase
-    const { error } = await supabase
-      .from('profiles')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', userId);
+  const tod = getTimeOfDay();
+  const streak = 1;
+  const currentWeight = user?.weight_kg || 69;
 
-    if (error) throw error;
+  return (
+    <div style={{
+      padding: '16px 16px 120px',
+      fontFamily: 'var(--font-arabic)',
+      background: 'var(--color-bg-base)',
+      minHeight: '100dvh',
+      color: 'var(--color-text-primary)',
+    }}>
+      {/* HEADER */}
+      <header style={{
+        display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', marginBottom: 20,
+      }}>
+        <div>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: 13, margin: 0 }}>
+            {timeGreeting(tod)}
+          </p>
+          <h1 style={{
+            color: 'var(--color-text-primary)',
+            fontSize: 22, fontWeight: 700, margin: '4px 0',
+          }}>
+            {user?.name || 'صديقي'}
+          </h1>
+        </div>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: 'var(--color-surface-1)',
+          padding: '8px 12px', borderRadius: 'var(--radius-full)',
+          border: '1px solid var(--color-border-subtle)',
+        }}>
+          <Flame size={14} color="var(--color-warning)" fill="var(--color-warning)" />
+          <span style={{ fontSize: 13, fontWeight: 600 }}>{streak}</span>
+        </div>
+      </header>
 
-    // 2. تحديث الحالة المحلية (الذاكرة)
-    set({
-      user: { ...user, ...updates },
-    });
-  } catch (error) {
-    console.error('Error updating profile:', error);
-    throw error;
-  }
-},
-      upgradeToGold: () => set({ plan: 'gold' }),
+      {/* PRIMARY KPI */}
+      <div style={{
+        background: 'var(--color-surface-1)',
+        border: '1px solid var(--color-border-subtle)',
+        borderRadius: 'var(--radius-xl)',
+        padding: '32px 20px', textAlign: 'center', marginBottom: 16,
+      }}>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: 13, margin: 0 }}>
+          السعرات المتبقية
+        </p>
+        <h2 style={{
+          fontSize: 56, color: 'var(--color-text-primary)',
+          margin: '12px 0 4px', fontWeight: 700, lineHeight: 1,
+        }}>
+          {remaining.toLocaleString('ar-EG')}
+        </h2>
+        <p style={{ color: 'var(--color-text-muted)', fontSize: 12, margin: 0 }}>
+          من {targetCalories.toLocaleString('ar-EG')} سعرة
+        </p>
+      </div>
 
-      signOut: async () => {
-        await supabase.auth.signOut();
-        set({
-          isLoggedIn: false,
-          userId: null,
-          user: null,
-          targets: null,
-          meals: [],
-          waterCups: 0,
-        });
-      },
+      {/* MACROS */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <MacroBar label="بروتين" consumed={consumed.protein} target={targetProtein} color="var(--color-primary-500)" />
+        <MacroBar label="كارب" consumed={consumed.carbs} target={targetCarbs} color="var(--color-bronze-500)" />
+        <MacroBar label="دهون" consumed={consumed.fat} target={targetFat} color="var(--color-warning)" />
+      </div>
 
-      resetAll: () => set(INITIAL_STATE),
-    }),
-  
-    {
-      name: 'rasha-qa-store',
-      version: 2,
-      // ✅ دالة الترحيل: تحول البيانات القديمة إلى الهيكل الجديد
-      migrate: (persistedState: any, version: number) => {
-        if (version === 1) {
-          // ترحيل البيانات من النسخة 1 إلى 2
-          return {
-            ...persistedState,
-            userId: persistedState.userId || null,
-            targets: persistedState.targets || null,
-            waterCups: persistedState.waterCups || 0,
-          };
-        }
-        return persistedState;
-      },
-      partialize: (state) => ({
-        isOnboarded: state.isOnboarded,
-        isLoggedIn: state.isLoggedIn,
-        userId: state.userId,
-        user: state.user,
-        targets: state.targets,
-        meals: state.meals,
-        waterCups: state.waterCups,
-        plan: state.plan,
-      }),
-    }
-  )
-);
+      {/* CTA */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+        <button
+          onClick={handleSuggest}
+          disabled={loading}
+          style={{
+            flex: 1, padding: 14,
+            background: 'var(--color-primary-500)',
+            color: 'var(--color-text-on-primary)',
+            border: 'none', borderRadius: 'var(--radius-md)',
+            fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
+            cursor: loading ? 'wait' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}
+        >
+          {loading
+            ? <><Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> جاري...</>
+            : <><Sparkles size={18} /> ماذا آكل الآن؟</>
+          }
+        </button>
+        <button
+          onClick={() => setWaterCups(waterCups + 1)}
+          style={{
+            flex: 1, padding: 14,
+            background: 'var(--color-surface-1)',
+            color: 'var(--color-text-primary)',
+            border: '1px solid var(--color-border-subtle)',
+            borderRadius: 'var(--radius-md)',
+            fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
+            cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          }}
+        >
+          <Droplet size={18} color="var(--color-info)" />
+          ماء ({waterCups}/{targetWaterCups})
+        </button>
+      </div>
+
+      {/* QUICK ACTIONS */}
+      <div style={{
+        display: 'flex', gap: 8, marginBottom: 20,
+        padding: '14px 8px',
+        background: 'var(--color-surface-1)',
+        border: '1px solid var(--color-border-subtle)',
+        borderRadius: 'var(--radius-lg)',
+      }}>
+        <QuickAction Icon={Camera} label="تصوير" onClick={() => navigate('/vision')} />
+        <QuickAction Icon={Mic} label="صوت" onClick={() => navigate('/vision')} />
+        <QuickAction Icon={Search} label="بحث" onClick={() => navigate('/reports')} />
+        <QuickAction Icon={Plus} label="إضافة" onClick={handleSuggest} />
+        <QuickAction Icon={Droplet} label="ماء" onClick={() => setWaterCups(waterCups + 1)} />
+      </div>
+
+      {/* MEALS LIST */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          alignItems: 'center', marginBottom: 12,
+        }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>وجبات اليوم</h3>
+          <span style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>{meals.length}</span>
+        </div>
+
+        {meals.length === 0 && initialFetchDone ? (
+          <div style={{
+            background: 'var(--color-surface-1)',
+            border: '1px dashed var(--color-border-strong)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 32, textAlign: 'center',
+          }}>
+            <Utensils size={28} color="var(--color-text-muted)" style={{ marginBottom: 10 }} />
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13, margin: 0 }}>
+              لم تسجل أي وجبة بعد
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {meals.map((m: Meal, i: number) => (
+              <div key={m.id || i} style={{
+                background: 'var(--color-surface-1)',
+                border: '1px solid var(--color-border-subtle)',
+                borderRadius: 'var(--radius-md)',
+                padding: 12,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{m.name}</div>
+                  {(m.protein || m.carbs || m.fat) && (
+                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
+                      {m.protein || 0}g · {m.carbs || 0}g · {m.fat || 0}g
+                    </div>
+                  )}
+                </div>
+                <span style={{ color: 'var(--color-primary-500)', fontSize: 14, fontWeight: 700 }}>
+                  {m.calories}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* WEIGHT + STREAK */}
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button onClick={() => navigate('/reports')} style={{
+          flex: 1, background: 'var(--color-surface-1)',
+          border: '1px solid var(--color-border-subtle)',
+          borderRadius: 'var(--radius-lg)', padding: 14,
+          textAlign: 'right', cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 'var(--radius-sm)',
+            background: 'var(--color-surface-2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Scale size={18} color="var(--color-bronze-500)" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>الوزن</div>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>{currentWeight} كغ</div>
+          </div>
+        </button>
+
+        <button onClick={() => navigate('/profile')} style={{
+          flex: 1, background: 'var(--color-surface-1)',
+          border: '1px solid var(--color-border-subtle)',
+          borderRadius: 'var(--radius-lg)', padding: 14,
+          textAlign: 'right', cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 'var(--radius-sm)',
+            background: 'var(--color-surface-2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Award size={18} color="var(--color-primary-500)" />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>السلسلة</div>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>{streak} أيام</div>
+          </div>
+        </button>
+      </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
