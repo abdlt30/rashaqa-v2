@@ -77,7 +77,7 @@ function QuickAction({ icon: Icon, label, onClick }: {
 }
 
 /* ============ Main ============ */
-export default function HomeScreen() {  // <-- تأكد من وجود هذه الكلمة: export default
+export default function HomeScreen() {
   const navigate = useNavigate();
   const user = useStore((s) => s.user);
   const userId = useStore((s) => s.userId);
@@ -279,27 +279,29 @@ export default function HomeScreen() {  // <-- تأكد من وجود هذه ا�
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {meals.map((m: Meal, i: number) => (
-              <div key={m.id || i} style={{
-                background: 'var(--color-surface-1)',
-                border: '1px solid var(--color-border-subtle)',
-                borderRadius: 'var(--radius-md)',
-                padding: 12,
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{m.name}</div>
-                  {(m.protein || m.carbs || m.fat) && (
-                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-                      {m.protein || 0}g · {m.carbs || 0}g · {m.fat || 0}g
-                    </div>
-                  )}
+            {meals.map((m: Meal, i: number) => {
+              return (
+                <div key={m.id || i} style={{
+                  background: 'var(--color-surface-1)',
+                  border: '1px solid var(--color-border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: 12,
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{m.name}</div>
+                    {(m.protein || m.carbs || m.fat) && (
+                      <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
+                        {m.protein || 0}g · {m.carbs || 0}g · {m.fat || 0}g
+                      </div>
+                    )}
+                  </div>
+                  <span style={{ color: 'var(--color-primary-500)', fontSize: 14, fontWeight: 700 }}>
+                    {m.calories}
+                  </span>
                 </div>
-                <span style={{ color: 'var(--color-primary-500)', fontSize: 14, fontWeight: 700 }}>
-                  {m.calories}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
