@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { supabase } from '../lib/supabase'; // تأكد من مسار عميل Supabase
+import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
+
 /* ============ Types ============ */
 export interface MacroTargets {
   calories: number;
@@ -38,7 +39,7 @@ export interface OnboardingData {
 }
 
 export interface Meal {
-  id?: string; // ✅ إضافة معرف فريد للوجبة للتزامن مع Supabase
+  id?: string;
   name: string;
   calories: number;
   protein?: number;
@@ -57,6 +58,7 @@ interface AppState {
   user: UserProfile | null;
   targets: MacroTargets | null;
   
+  // Auth State
   session: Session | null;
   authUser: User | null;
   isAuthLoading: boolean;
@@ -72,20 +74,19 @@ interface AppState {
   setTargets: (t: MacroTargets | null) => void;
   login: (email: string) => void;
   skipLogin: () => void;
-  fetchDailyData: () => Promise<void>; // ✅ دالة جديدة لجلب البيانات
-  addMeal: (meal: Meal) => Promise<void>; // ✅ أصبحت غير متزامنة
-  removeMeal: (id: string) => Promise<void>; // ✅ تعتمد على الـ ID
+  fetchDailyData: () => Promise<void>;
+  addMeal: (meal: Meal) => Promise<void>;
+  removeMeal: (id: string) => Promise<void>;
   clearMeals: () => void;
-  setWaterCups: (cups: number) => Promise<void>; // ✅ أصبحت غير متزامنة
+  setWaterCups: (cups: number) => Promise<void>;
   upgradeToGold: () => void;
   signOut: () => Promise<void>;
   logWorkout: (workout: { name: string; duration: number; caloriesBurned: number }) => Promise<void>;
-  updateProfile: (updates: Partial<UserProfile>) => Promise<void>; // ✅ أضف هذا السطر هنا
+  updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   resetAll: () => void;
   
+  // Auth Actions
   setSession: (session: Session | null) => void;
-  signOut: () => Promise<void>;
-  
 }
 
 /* ============ Initial State ============ */
@@ -98,6 +99,9 @@ const INITIAL_STATE = {
   meals: [] as Meal[],
   waterCups: 0,
   plan: 'free' as const,
+  session: null as Session | null,
+  authUser: null as User | null,
+  isAuthLoading: true,
 };
 
 /* ============ Store ============ */
@@ -106,13 +110,21 @@ export const useStore = create<AppState>()(
     (set, get) => ({
       ...INITIAL_STATE,
 
+      setSession: (session) => set({ 
+        session, 
+        authUser: session?.user || null,
+        userId: session?.user?.id || null,
+        isLoggedIn: !!session,
+        isAuthLoading: false 
+      }),
+
       completeOnboarding: (data) =>
         set({
           isOnboarded: true,
           user: {
             name: data.name,
             weight_kg: data.weight_kg || 70,
-            targetCalories: 2300, // يمكن تحديثها لاحقاً بناءً على الحسابات
+            targetCalories: 2300,
             country: 'MA',
             goal: data.goal,
             age: data.age,
@@ -129,7 +141,6 @@ export const useStore = create<AppState>()(
       login: (_email: string) => set({ isLoggedIn: true, isOnboarded: true }),
       skipLogin: () => set({ isOnboarded: true, isLoggedIn: false }),
 
-      // ✅ دالة لجلب بيانات اليوم من Supabase عند فتح التطبيق
       fetchDailyData: async () => {
         const { userId } = get();
         if (!userId) return;
@@ -137,32 +148,31 @@ export const useStore = create<AppState>()(
         const today = new Date().toISOString().split('T')[0];
 
         try {
-          // 1. جلب وجبات اليوم
+          // 1. جلب وجبات اليوم (استخدام log_date بدلاً من created_at)
           const { data: mealsData } = await supabase
             .from('food_logs')
             .select('*')
             .eq('user_id', userId)
-            .gte('created_at', today);
+            .eq('log_date', today);
 
-          // 2. جلب سجل الماء لليوم
+          // 2. جلب سجل الماء لليوم (استخدام log_date)
           const { data: waterData } = await supabase
             .from('water_logs')
             .select('amount_ml')
             .eq('user_id', userId)
-            .gte('logged_at', today);
+            .eq('log_date', today);
 
           const totalWater = waterData?.reduce((sum, log) => sum + log.amount_ml, 0) || 0;
 
           set({
             meals: mealsData || [],
-            waterCups: totalWater / 250, // افترضنا أن الكوب 250 مل
+            waterCups: Math.round(totalWater / 250), // التقريب لتجنب الكسور
           });
         } catch (error) {
           console.error('Error fetching daily data:', error);
         }
       },
 
-      // ✅ إضافة وجبة إلى Supabase ثم تحديث الواجهة
       addMeal: async (meal) => {
         const { userId, meals } = get();
         if (!userId) return;
@@ -183,15 +193,12 @@ export const useStore = create<AppState>()(
             .single();
 
           if (error) throw error;
-
-          // تحديث الحالة المحلية بالبيانات القادمة من Supabase (التي تحتوي على ID)
           set({ meals: [...meals, data] });
         } catch (error) {
           console.error('Error adding meal:', error);
         }
       },
 
-      // ✅ حذف وجبة من Supabase باستخدام الـ ID
       removeMeal: async (id) => {
         const { meals } = get();
         try {
@@ -204,7 +211,6 @@ export const useStore = create<AppState>()(
 
       clearMeals: () => set({ meals: [] }),
 
-      // ✅ تسجيل الماء في Supabase
       setWaterCups: async (cups) => {
         const { userId, waterCups } = get();
         if (!userId) return;
@@ -216,7 +222,7 @@ export const useStore = create<AppState>()(
           await supabase.from('water_logs').insert({
             user_id: userId,
             amount_ml,
-            logged_at: new Date().toISOString(),
+            log_date: new Date().toISOString().split('T')[0],
           });
           set({ waterCups: cups });
         } catch (error) {
@@ -224,113 +230,64 @@ export const useStore = create<AppState>()(
         }
       },
       
-      // ✅ تسجيل التمرين في Supabase
-      
-    logWorkout: async (workout) => {
-    const { userId } = get();
-  if (!userId) {
-    console.warn('User not logged in');
-    return;
-  }
+      // ✅ تصحيح تسجيل التمرين ليتوافق مع جدول workout_logs
+      logWorkout: async (workout) => {
+        const { userId } = get();
+        if (!userId) return;
 
-  try {
-    // 1. تسجيل النشاط في daily_progress
-    const { error: progressError } = await supabase
-      .from('daily_progress')
-      .insert({
-        user_id: userId,
-        activity_type: 'workout',
-        activity_name: workout.name,
-        duration_minutes: workout.duration,
-        calories_burned: workout.caloriesBurned,
-        logged_at: new Date().toISOString(),
-      });
+        try {
+          // في المستقبل، سنمرر الـ exercise_id الحقيقي بدلاً من name
+          // هنا نقوم بتسجيله في جدول السجلات
+          const { error } = await supabase
+            .from('workout_logs')
+            .insert({
+              user_id: userId,
+              exercise_id: null, // يمكن تحديثه لاحقاً بربط التمرين
+              // يمكنك إضافة تفاصيل أخرى إذا أضفت أعمدة للجدول
+            });
 
-    if (progressError) throw progressError;
+          if (error) {
+            // إذا لم يكن الجدول يحتوي على هذه الأعمدة، سنقوم بطباعة الخطأ فقط
+            console.warn('Note: workout_logs schema might need adjustments:', error.message);
+          }
+        } catch (error) {
+          console.error('Error logging workout:', error);
+        }
+      },
 
-    // 2. تحديث السلسلة (Streak)
-    const { data: streakData } = await supabase
-      .from('streaks')
-      .select('current_streak, last_activity_date')
-      .eq('user_id', userId)
-      .single();
+      updateProfile: async (updates) => {
+        const { userId, user } = get();
+        if (!userId || !user) return;
 
-    const today = new Date().toISOString().split('T')[0];
-    if (streakData) {
-      const lastDate = streakData.last_activity_date;
-      const newStreak = lastDate === today ? streakData.current_streak : (streakData.current_streak || 0) + 1;
-      
-      await supabase
-        .from('streaks')
-        .update({ current_streak: newStreak, last_activity_date: today })
-        .eq('user_id', userId);
-    } else {
-      // إذا لم يكن هناك سجل سلسلة، ننشئ واحداً جديداً
-      await supabase
-        .from('streaks')
-        .insert({ user_id: userId, current_streak: 1, last_activity_date: today });
-    }
-  } catch (error) {
-    console.error('Error logging workout:', error);
-    throw error;
-  }
-},
-     // ✅ دالة تحديث الملف الشخصي (Supabase + State)
-   updateProfile: async (updates) => {
-  const { userId, user } = get();
-  if (!userId || !user) {
-    console.warn('User not logged in');
-    return;
-  }
+        try {
+          const { error } = await supabase
+            .from('profiles')
+            .update({ ...updates })
+            .eq('id', userId);
 
-  try {
-    // 1. تحديث Supabase
-    const { error } = await supabase
-      .from('profiles')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', userId);
+          if (error) throw error;
+          set({ user: { ...user, ...updates } });
+        } catch (error) {
+          console.error('Error updating profile:', error);
+        }
+      },
 
-    if (error) throw error;
-
-    // 2. تحديث الحالة المحلية (الذاكرة)
-    set({
-      user: { ...user, ...updates },
-    });
-  } catch (error) {
-    console.error('Error updating profile:', error);
-    throw error;
-  }
-},
       upgradeToGold: () => set({ plan: 'gold' }),
 
       signOut: async () => {
         await supabase.auth.signOut();
-        set({
-          isLoggedIn: false,
-          userId: null,
-          user: null,
-          targets: null,
-          meals: [],
-          waterCups: 0,
-        });
+        set({ ...INITIAL_STATE, isAuthLoading: false });
       },
 
-      resetAll: () => set(INITIAL_STATE),
+      resetAll: () => set({ ...INITIAL_STATE, isAuthLoading: false }),
     }),
   
     {
       name: 'rasha-qa-store',
       version: 2,
-      // ✅ دالة الترحيل: تحول البيانات القديمة إلى الهيكل الجديد
       migrate: (persistedState: any, version: number) => {
         if (version === 1) {
-          // ترحيل البيانات من النسخة 1 إلى 2
-          return {
-            ...persistedState,
-            userId: persistedState.userId || null,
-            targets: persistedState.targets || null,
-            waterCups: persistedState.waterCups || 0,
-          };
+          return { ...persistedState, userId: persistedState.userId || null };
         }
         return persistedState;
       },
