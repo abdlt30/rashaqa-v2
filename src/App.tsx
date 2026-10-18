@@ -1,9 +1,41 @@
 import React from 'react';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { AdProviderRoot } from './core/ads/AdContext';
+import BottomNav from './components/BottomNav';
 import OnboardingFlow from './features/onboarding/OnboardingFlow';
 import HomeScreen from './screens/HomeScreen';
+import WorkoutsScreen from './screens/WorkoutsScreen';
+import ReportsScreen from './screens/ReportsScreen';
+import ProfileScreen from './screens/ProfileScreen';
+import VisionScreen from './screens/VisionScreen';
+import PlansScreen from './screens/PlansScreen';
 import { useStore } from './store/useStore';
 
+// ✅ 1. التطبيق الرئيسي (Router + BottomNav)
+function MainApp() {
+  return (
+    <HashRouter>
+      <div style={{
+        background: 'var(--color-bg-base)',
+        minHeight: '100dvh',
+        color: 'var(--color-text-primary)',
+        fontFamily: 'var(--font-arabic)',
+      }}>
+        <Routes>
+          <Route path="/" element={<HomeScreen />} />
+          <Route path="/workouts" element={<WorkoutsScreen />} />
+          <Route path="/reports" element={<ReportsScreen />} />
+          <Route path="/profile" element={<ProfileScreen />} />
+          <Route path="/vision" element={<VisionScreen />} />
+          <Route path="/premium" element={<PlansScreen />} />
+        </Routes>
+        <BottomNav />
+      </div>
+    </HashRouter>
+  );
+}
+
+// ✅ 2. المكون الرئيسي: يقرر ماذا يعرض
 function AppContent() {
   const isOnboarded = useStore((s) => s.isOnboarded);
 
@@ -11,10 +43,10 @@ function AppContent() {
     return <OnboardingFlow />;
   }
 
-  // ✅ اختبار: عرض HomeScreen فقط، بدون Router أو BottomNav
-  return <HomeScreen />;
+  return <MainApp />;
 }
 
+// ✅ 3. غلاف AdProvider
 function App() {
   return (
     <AdProviderRoot>
