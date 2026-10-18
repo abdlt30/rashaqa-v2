@@ -1,83 +1,57 @@
+// src/services/aiService.ts
+import { searchFoodInDB } from './workoutService';
 import { supabase } from '../lib/supabase';
 
-const AI_FUNCTION_URL = 'https://axthmghawwishcjlldfj.supabase.co/functions/v1/smart-service';
-const TIMEOUT_MS = 30000; // 30 ثانية
-
-// ✅ 1. تعريف أنواع البيانات (Types)
-export type AiAction = 'analyze' | 'suggest' | 'chat' | 'meal-plan' | 'voice';
-
-export interface AiResponse<T = any> {
-  ok: boolean;
-  data?: T;
-  error?: string;
-  meta?: {
-    action: string;
-    model: string;
-    credits_used: number;
-    latency_ms: number;
-  };
-}
-
-interface AiPayload {
-  action: AiAction;
-  body?: Record<string, any>;
-  imageBase64?: string;
-  mimeType?: string;
-  message?: string;
-}
-
-// ✅ 2. دالة موحدة لاستدعاء الذكاء الاصطناعي
-export async function askAi<T = any>(
-  action: AiAction,
-  payload: Omit<AiPayload, 'action'>
-): Promise<AiResponse<T>> {
+export const askAi = async (action: string, payload: any) => {
   try {
-    // 1. الحصول على الجلسة الحالية
-    const { data: { session } } = await supabase.auth.getSession();
+    const userQuery = payload.body.message || payload.body.query;
 
-    if (!session?.access_token) {
-      return { ok: false, error: 'يجب تسجيل الدخول أولاً' };
+    // 1. البحث الذكي في قاعدة البيانات (Smart Caching)
+    if (action === 'analyze' || action === 'suggest') {
+      const existingFood = await searchFoodInDB(userQuery);
+      
+      if (existingFood) {
+        console.log('✅ تم جلب البيانات من قاعدة البيانات (تكلفة 0)');
+        return {
+          ok: true,
+          data: {
+            name: existingFood.name_ar,
+            calories: existingFood.calories_per_100g,
+            protein: existingFood.protein_per_100g,
+            carbs: existingFood.carbs_per_100g,
+            fat: existingFood.fat_per_100g,
+            source: 'database' // علامة تدل على أنها لم تستهلك AI
+          }
+        };
+      }
     }
 
-    // 2. إعداد الطلب مع Timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    const response = await fetch(AI_FUNCTION_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ action, ...payload }),
-      signal: controller.signal,
+    // 2. إذا لم نجده، نستدعي الذكاء الاصطناعي (Edge Function)
+    console.log('⏳ لم يتم العثور عليه في الداتابيز، جاري استدعاء Gemini...');
+    const { data, error } = await supabase.functions.invoke('smart-service', {
+      body: { action, ...payload.body },
+      headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` }
     });
 
-    clearTimeout(timeoutId);
+    if (error) throw error;
 
-    // 3. تحليل الاستجابة
-    const data = await response.json();
-
-    if (!response.ok) {
-      // ✅ 3. معالجة خاصة لأخطاء الرصيد والحدود
-      if (response.status === 402) {
-        return { ok: false, error: 'رصيدك من الذكاء الاصطناعي انتهى. يرجى الترقية للمتابعة.' };
-      }
-      if (response.status === 429) {
-        return { ok: false, error: 'لقد تجاوزت الحد المسموح. حاول بعد قليل.' };
-      }
-      return { ok: false, error: data?.error || `HTTP ${response.status}` };
+    // 3. حفظ النتيجة الجديدة في قاعدة البيانات (للمستقبل)
+    if (action === 'analyze' && data?.ok && data.data) {
+      await supabase.from('foods').insert([{
+        name_ar: data.data.name,
+        calories_per_100g: data.data.calories,
+        protein_per_100g: data.data.protein,
+        carbs_per_100g: data.data.carbs,
+        fat_per_100g: data.data.fat,
+        is_ai_generated: true // نحتفظ بعلامة أنها من AI
+      }]);
+      console.log('💾 تم حفظ النتيجة الجديدة في الداتابيز للمستقبل.');
     }
 
     return data;
-  } catch (error: any) {
-    console.error('AI Service Error:', error);
-    
-    // ✅ 4. معالجة أخطاء الـ Timeout
-    if (error.name === 'AbortError') {
-      return { ok: false, error: 'استغرق التحليل وقتاً طويلاً. حاول مرة أخرى.' };
-    }
-    
-    return { ok: false, error: 'حدث خطأ في الاتصال بالمدرب الذكي' };
+
+  } catch (error) {
+    console.error("AI Service Error:", error);
+    return { ok: false, error: "حدث خطأ في معالجة الطلب" };
   }
-}
+};
