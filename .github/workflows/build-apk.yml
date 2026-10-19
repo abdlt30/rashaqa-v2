@@ -23,7 +23,6 @@ jobs:
       - name: Build Web App
         run: npm run build
 
-      # ✅ هذه الخطوة هي الأهم لمزامنة الكود مع الأندرويد
       - name: Sync Capacitor
         run: npx cap sync android
 
@@ -33,8 +32,12 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      # ✅ الحل الجديد: إعداد بيئة أندرويد مستقرة بدون أخطاء
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'tools platform-tools platforms;android-34 build-tools;34.0.0'
+          accept-android-sdk-licenses: true
 
       - name: Build APK
         run: |
