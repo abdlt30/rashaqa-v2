@@ -32,11 +32,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # ✅ الحل الجديد: إعداد بيئة أندرويد مستقرة بدون أخطاء
+      # ✅ الحل الجديد: منع تحميل حزمة tools المحذوفة
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: 'tools platform-tools platforms;android-34 build-tools;34.0.0'
+          packages: 'platform-tools' # طلب platform-tools فقط
           accept-android-sdk-licenses: true
 
       - name: Build APK
