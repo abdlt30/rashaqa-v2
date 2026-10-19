@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
-import { askAi } from '../services/aiService';
+// ✅ 1. استيراد الدالة الجديدة (وليس askAi)
+import { callAICoach } from '../services/aiService';
 import MacroCard from '../components/home/MacroCard';
 import MealList from '../components/home/MealList';
-import { Droplet, Sparkles, Loader2 } from 'lucide-react'; // استخدام الأيقونات
+import { Droplet, Sparkles, Loader2 } from 'lucide-react';
 
 export default function HomeScreen() {
   const navigate = useNavigate();
@@ -24,17 +25,31 @@ export default function HomeScreen() {
     if (userId) fetchDailyData();
   }, [userId, fetchDailyData]);
 
-  // Business Logic: يجب أن ينتقل هذا لاحقاً إلى المتجر أو Helper
   const targetCalories = targets?.calories || user?.targetCalories || 2300;
-  const remaining = Math.max(targetCalories - meals.reduce((s, m) => s + m.calories, 0), 0);
+  const remaining = Math.max(targetCalories - meals.reduce((s, m) => s + (m.calories || 0), 0), 0);
 
+  // ✅ 2. تحديث دالة اقتراح الوجبة لتستخدم callAICoach
   const handleSuggest = async () => {
     setLoading(true);
     try {
-      const res = await askAi('suggest', {
-        body: { country: user?.country || 'MA', goal: user?.goal || 'maintain', remainingCalories: remaining },
+      const res = await callAICoach('suggest', {
+        message: `اقترح وجبة عربية لا تتجاوز ${remaining} سعرة`,
+        goal: user?.goal || 'maintain'
       });
-      if (res?.ok && res.data) await addMeal(res.data);
+      
+      if (res.success && res.data) {
+        // حفظ الوجبة المقترحة في قاعدة البيانات
+        await addMeal({
+          name: res.data.name,
+          calories: res.data.calories,
+          protein: res.data.protein,
+          carbs: res.data.carbs,
+          fat: res.data.fat,
+          meal_type: 'lunch'
+        });
+      }
+    } catch (error) {
+      console.error("Error suggesting meal:", error);
     } finally {
       setLoading(false);
     }
@@ -58,10 +73,10 @@ export default function HomeScreen() {
         </h1>
       </header>
 
-      {/* KPI CARD (مكون مستقل) */}
+      {/* KPI CARD */}
       <MacroCard remaining={remaining} targetCalories={targetCalories} />
 
-      {/* CTA (أزرار الإجراءات) */}
+      {/* CTA */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <button 
           onClick={handleSuggest} 
@@ -104,7 +119,7 @@ export default function HomeScreen() {
         </button>
       </div>
 
-      {/* MEALS LIST (مكون مستقل) */}
+      {/* MEALS LIST */}
       <MealList meals={meals} />
 
     </div>
