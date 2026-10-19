@@ -1,10 +1,13 @@
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Home, Dumbbell, BarChart3, User } from 'lucide-react'
+// ✅ إضافة أيقونة Sparkles للمدرب الذكي
+import { Home, Dumbbell, BarChart3, User, Sparkles } from 'lucide-react'
 
 const tabs = [
   { key: '/', label: 'الرئيسية', Icon: Home },
   { key: '/workouts', label: 'التمارين', Icon: Dumbbell },
+  // ✅ إضافة المدرب الذكي هنا
+  { key: '/coach', label: 'المدرب الذكي', Icon: Sparkles },
   { key: '/reports', label: 'التقارير', Icon: BarChart3 },
   { key: '/profile', label: 'حسابي', Icon: User },
 ]
@@ -62,10 +65,10 @@ export default function BottomNav() {
               transition: 'color 200ms ease',
             }}
           >
-            <Icon size={24} strokeWidth={isActive ? 2.5 : 2} color={color} />
+            <Icon size={22} strokeWidth={isActive ? 2.5 : 2} color={color} />
             <span
               style={{
-                fontSize: 'var(--fs-caption)',
+                fontSize: '10px', // تصغير الخط قليلاً ليتسع لـ 5 أيقونات
                 fontWeight: isActive ? 600 : 500,
                 lineHeight: 1,
               }}
