@@ -31,6 +31,7 @@ function MainApp() {
         <Route path="/profile" element={<ProfileScreen />} />
         <Route path="/vision" element={<VisionScreen />} />
         <Route path="/premium" element={<PlansScreen />} />
+        <Route path="/coach" element={<AICoachScreen />} />
       </Routes>
       <BottomNav />
     </div>
