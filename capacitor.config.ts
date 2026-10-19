@@ -1,17 +1,20 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.rashaqa.app', // تأكد من معرف التطبيق الخاص بك
+  appId: 'com.rashaqa.app',
   appName: 'Rashaqa',
   webDir: 'dist',
   server: {
-    androidScheme: 'https' // ✅ مهم جداً
+    androidScheme: 'https'
   },
-  // ✅ تفعيل الشبكة الأصلية
   plugins: {
     CapacitorHttp: {
-      enabled: true,
+      enabled: true, // تفعيل الشبكة الأصلية (Native HTTP)
     },
+  },
+  // ✅ الحل السحري لمشاكل DNS في الأندرويد
+  android: {
+    allowMixedContent: true, // للسماح بالاتصالات المختلطة إذا لزم الأمر
   },
 };
 
