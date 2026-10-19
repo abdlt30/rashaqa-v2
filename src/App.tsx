@@ -13,6 +13,7 @@ import LoginScreen from './screens/LoginScreen'; // تأكد من وجود هذ�
 import { useStore } from './store/useStore';
 import { supabase } from './lib/supabase';
 import { Loader2 } from 'lucide-react';
+import AICoachScreen from './screens/AICoachScreen';
 
 // ✅ 1. التطبيق الرئيسي (الشاشات المحمية + BottomNav)
 function MainApp() {
