@@ -1,9 +1,10 @@
 // src/lib/supabase.ts
 import { createClient } from '@supabase/supabase-js';
 
-// ✅ استخدام القيم المباشرة كاحتياط (Fallback) لضمان عمل تطبيق الأندرويد
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://mneayhrosncrvrutteomb.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_8HuVSaHiYjipR5mMm3-vgA_GAcjJf_v';
+// ✅ وضع الرابط والمفتاح مباشرة لضمان عمل تطبيق الأندرويد
+// هذه هي مفاتيح مشروعك (ArabHealth-DB)
+const supabaseUrl = 'https://mneayhrosncrvrutteomb.supabase.co';
+const supabaseAnonKey = 'sb_publishable_8HuVSaHiYjipR5mMm3-vgA_GAcjJf_v';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
