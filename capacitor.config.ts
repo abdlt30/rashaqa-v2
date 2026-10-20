@@ -1,5 +1,3 @@
-import type { CapacitorConfig } from '@capacitor/cli';
-
 const config: CapacitorConfig = {
   appId: 'com.rashaqa.app',
   appName: 'Rashaqa',
@@ -9,13 +7,10 @@ const config: CapacitorConfig = {
   },
   plugins: {
     CapacitorHttp: {
-      enabled: true, // تفعيل الشبكة الأصلية (Native HTTP)
+      enabled: true,
     },
   },
-  // ✅ الحل السحري لمشاكل DNS في الأندرويد
   android: {
-    allowMixedContent: true, // للسماح بالاتصالات المختلطة إذا لزم الأمر
+    allowMixedContent: true,
   },
 };
-
-export default config;
