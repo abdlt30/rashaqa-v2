@@ -51,25 +51,19 @@ export interface Meal {
 }
 
 interface AppState {
-  // === Core state ===
   isOnboarded: boolean;
   isLoggedIn: boolean;
   userId: string | null;
   user: UserProfile | null;
   targets: MacroTargets | null;
-  
-  // Auth State
   session: Session | null;
   authUser: User | null;
   isAuthLoading: boolean;
-  
-  // === Runtime state ===
   meals: Meal[];
   waterCups: number;
   plan: 'free' | 'gold';
 
-  // === Actions ===
-  completeOnboarding: (data: OnboardingData) => void;
+  completeOnboarding: (data: OnboardingData) => Promise<void>;
   setUserId: (id: string | null) => void;
   setTargets: (t: MacroTargets | null) => void;
   login: (email: string) => void;
@@ -83,15 +77,12 @@ interface AppState {
   logWorkout: (workout: { name: string; duration: number; caloriesBurned: number }) => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
   resetAll: () => void;
-  
-  // Auth Actions (تمت إضافتها هنا)
   setSession: (session: Session | null) => void;
   signOut: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signUp: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
 }
 
-/* ============ Initial State ============ */
 const INITIAL_STATE = {
   isOnboarded: false,
   isLoggedIn: false,
@@ -106,7 +97,6 @@ const INITIAL_STATE = {
   isAuthLoading: true,
 };
 
-/* ============ Store ============ */
 export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -120,7 +110,6 @@ export const useStore = create<AppState>()(
         isAuthLoading: false 
       }),
 
-      // ✅ إضافة دالة تسجيل الدخول
       signIn: async (email, password) => {
         try {
           const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -132,19 +121,26 @@ export const useStore = create<AppState>()(
         }
       },
 
-      // ✅ إضافة دالة إنشاء الحساب
       signUp: async (email, password) => {
         try {
           const { data, error } = await supabase.auth.signUp({ email, password });
           if (error) throw error;
-          // ملاحظة: قد تحتاج لتأكيد البريد الإلكتروني حسب إعدادات Supabase
+          
+          // ✅ إذا تم إنشاء الحساب وتأكيده تلقائياً، نقوم بتسجيل الدخول
+          if (data.session) {
+             set({ session: data.session, authUser: data.user, userId: data.user?.id, isLoggedIn: true });
+          }
           return { success: true };
         } catch (error: any) {
           return { success: false, error: error.message };
         }
       },
 
-      completeOnboarding: (data) =>
+      // ✅ إصلاح دالة التعريف لحفظ البيانات في جدول profiles
+      completeOnboarding: async (data) => {
+        const { userId } = get();
+        
+        // 1. تحديث الحالة المحلية فوراً
         set({
           isOnboarded: true,
           user: {
@@ -160,7 +156,28 @@ export const useStore = create<AppState>()(
             activity_level: data.activity_level,
             diet_preference: data.diet_preference,
           },
-        }),
+        });
+
+        // 2. حفظ البيانات في Supabase (إذا كان المستخدم مسجلاً)
+        if (userId) {
+          try {
+            await supabase.from('profiles').upsert({
+              id: userId,
+              full_name: data.name,
+              weight_kg: data.weight_kg,
+              height_cm: data.height_cm,
+              goal: data.goal,
+              age: data.age,
+              gender: data.gender,
+              target_weight_kg: data.target_weight_kg,
+              activity_level: data.activity_level,
+              diet_preference: data.diet_preference,
+            });
+          } catch (error) {
+            console.error("Error saving profile to Supabase:", error);
+          }
+        }
+      },
 
       setUserId: (id) => set({ userId: id }),
       setTargets: (t) => set({ targets: t }),
