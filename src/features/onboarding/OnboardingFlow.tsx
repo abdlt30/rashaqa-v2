@@ -5,11 +5,39 @@ import {
   Eye, EyeOff, User, Activity as ActivityIcon,
   Utensils
 } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
 import { useStore } from '../../store/useStore'
-import { useOnboarding } from './store'
-import { calculateTargets } from './calc'
-import type { OnboardingData } from './calc'
+
+// ============================================
+// 1. الأنواع (Types) - تم دمجها هنا لتجنب ملفات خارجية
+// ============================================
+interface OnboardingData {
+  name: string;
+  goal: string;
+  age?: number;
+  gender?: 'male' | 'female';
+  height_cm?: number;
+  weight_kg?: number;
+  target_weight_kg?: number;
+  activity_level?: string;
+  diet_preference?: string;
+}
+
+// دالة حسابية بسيطة (يمكنك تعديلها لاحقاً)
+function calculateTargets(data: OnboardingData) {
+  let bmr = 10 * (data.weight_kg || 70) + 6.25 * (data.height_cm || 170) - 5 * (data.age || 25) + 5;
+  let tdee = bmr * 1.55; // نشاط متوسط
+  let calories = Math.round(tdee);
+  if (data.goal === 'lose') calories -= 500;
+  if (data.goal === 'gain') calories += 500;
+
+  return {
+    calories,
+    protein_g: Math.round(calories * 0.3 / 4),
+    carbs_g: Math.round(calories * 0.4 / 4),
+    fat_g: Math.round(calories * 0.3 / 9),
+    water_ml: 2500,
+  };
+}
 
 /* ============================================================
    REUSABLE COMPONENTS
@@ -509,120 +537,61 @@ function AccountStep({ onComplete, onSkip, onBack }: {
 export default function OnboardingFlow() {
   const [step, setStep] = useState(0)
   const [calculating, setCalculating] = useState(false)
-  const { data, targets, update, setTargets, reset } = useOnboarding()
-  const {
-    completeOnboarding,
-    skipLogin,
-    login,
-    setUserId,
-    setTargets: setStoreTargets,
-  } = useStore()
+  const [data, setData] = useState<OnboardingData>({ name: '', goal: 'maintain' })
+  const [targets, setTargets] = useState<any>(null)
+  
+  const { completeOnboarding, skipLogin } = useStore()
 
+  const update = (p: Partial<OnboardingData>) => setData((prev) => ({ ...prev, ...p }))
   const goNext = () => setStep((s) => s + 1)
   const goBack = () => setStep((s) => Math.max(0, s - 1))
-
-  const handleGoalNext = () => goNext()
 
   const handleDietNext = () => {
     setCalculating(true)
     setTimeout(() => {
-      const t = calculateTargets(data as OnboardingData)
+      const t = calculateTargets(data)
       setTargets(t)
-      setStoreTargets(t)
       setCalculating(false)
       goNext()
     }, 800)
   }
 
   const handleAccountCreate = async (email: string, password: string) => {
-    let userId: string | null = null
-
-    // 1. جرّب إنشاء الحساب أولاً
-    const { data: signupData, error: signupError } = await supabase.auth.signUp({
+    // 1. إنشاء الحساب في Supabase
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
     })
 
-    // 2. إذا كان البريد موجوداً → سجّل الدخول بدلاً منه
-    if (
-      signupError?.message?.includes('already registered') ||
-      signupError?.message?.includes('User already')
-    ) {
-      const { data: loginData, error: loginError } =
-        await supabase.auth.signInWithPassword({ email, password })
+    if (authError) throw authError
 
-      if (loginError) {
-        throw new Error(
-          'هذا البريد مسجل بكلمة مرور مختلفة. جرّب "نسيت كلمة المرور"'
-        )
-      }
-      userId = loginData.user?.id || null
-    }
-    // 3. خطأ آخر غير متوقع
-    else if (signupError) {
-      throw signupError
-    }
-    // 4. نجح التسجيل
-    else {
-      userId = signupData.user?.id || null
+    const userId = authData.user?.id
+    if (!userId) throw new Error("لم يتم إنشاء معرف المستخدم")
 
-      // إذا لم يكن هناك session مباشرة → نحاول تسجيل الدخول فوراً
-      if (signupData.user && !signupData.session) {
-        const { data: loginData, error: loginError } =
-          await supabase.auth.signInWithPassword({ email, password })
+    // 2. حفظ الملف الشخصي في جدول profiles
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert({
+        id: userId,
+        full_name: data.name || 'صديق',
+        weight_kg: data.weight_kg || null,
+        height_cm: data.height_cm || null,
+        goal: data.goal || 'maintain',
+        age: data.age || null,
+        gender: data.gender || null,
+        target_weight_kg: data.target_weight_kg || null,
+        activity_level: data.activity_level || null,
+        diet_preference: data.diet_preference || null,
+        daily_calorie_target: targets?.calories || 2000,
+      })
 
-        if (loginError?.message?.includes('not confirmed')) {
-          throw new Error(
-            'تم إنشاء حسابك ✅ — يرجى تأكيد بريدك الإلكتروني ثم تسجيل الدخول'
-          )
-        }
-        if (!loginError && loginData.user) {
-          userId = loginData.user.id
-        }
-      }
-    }
+    if (profileError) throw profileError
 
-    // 5. حفظ الملف الشخصي في Supabase
-    if (userId) {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: userId,
-          name: data.name || '',
-          country: 'MA',
-          gender: data.gender || null,
-          birth_date: null,
-          height_cm: data.height_cm || null,
-          weight_kg: data.weight_kg || null,
-          activity_level: data.activity_level || null,
-          diet_preference: data.diet_preference || null,
-          goal: data.goal || 'maintain',
-          target_weight_kg: data.target_weight_kg || null,
-          daily_calorie_target: targets?.calories || null,
-          onboarding_completed: true,
-        })
-
-      if (profileError) {
-        console.warn('Profile save warning:', profileError)
-      }
-
-      setUserId(userId)
-    }
-
-    if (targets) setStoreTargets(targets)
-
+    // 3. تحديث المتجر المحلي
     completeOnboarding({
+      ...data,
       name: data.name || 'صديق',
-      goal: data.goal || 'maintain',
-      age: data.age,
-      gender: data.gender,
-      height_cm: data.height_cm,
-      weight_kg: data.weight_kg,
-      target_weight_kg: data.target_weight_kg,
-      activity_level: data.activity_level,
-      diet_preference: data.diet_preference,
     })
-    login(email)
   }
 
   const handleSkip = () => {
@@ -641,11 +610,11 @@ export default function OnboardingFlow() {
 
   switch (step) {
     case 0: return <WelcomeStep onNext={goNext} onSkip={handleSkip} />
-    case 1: return <GoalStep value={data.goal || ''} onSelect={(v) => update({ goal: v as any })} onNext={handleGoalNext} onBack={goBack} />
+    case 1: return <GoalStep value={data.goal} onSelect={(v) => update({ goal: v })} onNext={goNext} onBack={goBack} />
     case 2: return <ProfileStep data={data} update={update} onNext={goNext} onBack={goBack} />
     case 3: return <BodyStep data={data} update={update} onNext={goNext} onBack={goBack} />
-    case 4: return <ActivityStep value={data.activity_level || ''} onSelect={(v) => update({ activity_level: v as any })} onNext={goNext} onBack={goBack} />
-    case 5: return <DietStep value={data.diet_preference} onSelect={(v) => update({ diet_preference: v as any })} onNext={handleDietNext} onSkip={handleDietNext} onBack={goBack} />
+    case 4: return <ActivityStep value={data.activity_level || ''} onSelect={(v) => update({ activity_level: v })} onNext={goNext} onBack={goBack} />
+    case 5: return <DietStep value={data.diet_preference} onSelect={(v) => update({ diet_preference: v })} onNext={handleDietNext} onSkip={handleDietNext} onBack={goBack} />
     case 6: return <RevealStep data={data} targets={targets} onNext={goNext} onBack={goBack} />
     case 7: return <AccountStep onComplete={handleAccountCreate} onSkip={handleSkip} onBack={goBack} />
     default: return null
